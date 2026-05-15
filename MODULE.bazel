@@ -1,0 +1,23 @@
+module(
+    name = "rules_chrome",
+    version = "0.1.0",
+    compatibility_level = 1,
+)
+
+bazel_dep(name = "platforms", version = "0.0.10")
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+
+# Dev-only: only loaded by docs/BUILD.bazel and examples/...
+bazel_dep(name = "rules_shell", version = "0.4.1", dev_dependency = True)
+bazel_dep(name = "stardoc", version = "0.7.2", dev_dependency = True)
+
+# Dev-only end-to-end smoke: pulls @chrome + @chromedriver for
+# `bazel test //examples/smoke:...`. Consumers don't see this — they
+# call `use_extension` themselves in their own MODULE.bazel.
+chrome = use_extension("//chrome:extensions.bzl", "chrome", dev_dependency = True)
+use_repo(chrome, "chrome", "chromedriver")
+
+register_toolchains(
+    "@chrome//:chrome_toolchain_def",
+    dev_dependency = True,
+)
