@@ -17,6 +17,14 @@ automation.
     on a configurable port; consume from selenium / playwright / pytest.
 
   See [docs/defs.md](docs/defs.md).
+- **playwright sub-module** (opt-in): `playwright_chrome_py_test` and
+  `playwright_chrome_js_test` macros that wire `@chrome` into a Playwright
+  `launchPersistentContext` against a Bazel-managed user-data-dir. See
+  [docs/playwright_py.md](docs/playwright_py.md) and
+  [docs/playwright_js.md](docs/playwright_js.md). Consumers only pay the
+  `rules_python` / `aspect_rules_js` cost if they load the sub-module — the
+  default `bazel_dep` on `rules_chrome` is a zero-cost chrome+chromedriver
+  toolchain.
 
 ## Install
 
@@ -131,6 +139,57 @@ endpoint (or `{version}.json` for a specific build), downloads every
 `(binary, platform)` zip, hashes it, and rewrites `known_versions.bzl` in
 place. Stdlib-only — no `pip install` needed.
 
+## Playwright integration (opt-in)
+
+If you drive chrome through Playwright, the `chrome/playwright` sub-module
+gives you idiomatic Bazel macros that compose correctly with `launch_persistent_context`:
+
+```python
+# MODULE.bazel — add rules_python and your own pip hub
+bazel_dep(name = "rules_python", version = "2.0.1")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "my_pip",
+    python_version = "3.12",
+    requirements_lock = "//:requirements_lock.txt",   # must include playwright
+)
+use_repo(pip, "my_pip")
+```
+
+```python
+# BUILD.bazel
+load("@rules_chrome//chrome/playwright:py.bzl", "playwright_chrome_py_test")
+load("@my_pip//:requirements.bzl", "requirement")
+
+playwright_chrome_py_test(
+    name = "browser_test",
+    srcs = ["browser_test.py"],
+    user_data_dir_mode = "workspace",  # persistent profile under bazel run
+    deps = [requirement("playwright")],
+)
+```
+
+```python
+# browser_test.py
+from rules_chrome_playwright import chrome_context
+
+def test_thing():
+    with chrome_context() as ctx:           # BrowserContext, not Browser
+        page = ctx.new_page()
+        page.goto("https://example.com")
+        # cookies/extensions/local-storage survive across `bazel run` in workspace mode
+```
+
+The Node side mirrors this — `playwright_chrome_js_test` from
+`@rules_chrome//chrome/playwright:js.bzl`, with Playwright pulled through
+`aspect_rules_js`. See [examples/smoke](examples/smoke) for runnable
+versions of both.
+
+Consumers who **don't** load the sub-module don't pay for it — `rules_python`
+and `aspect_rules_js` are `dev_dependency` on rules_chrome, so they only
+appear in your dep graph if your `MODULE.bazel` brings them in itself.
+
 ## Scope and non-goals
 
 This module intentionally stays small. It provides the **generally reusable**
@@ -183,6 +242,8 @@ output) and the smoke targets in `examples/smoke/`:
 | `chromedriver_version_test`               | `@chromedriver` launcher → `chromedriver --version` exits 0               |
 | `playwright_smoke_test` (py)              | Python Playwright → `executable_path=@chrome` → about:blank + JS eval     |
 | `playwright_node_smoke_test` (js)         | Node Playwright → same shape, exercises the primary CDP code path         |
+| `playwright_module_py_test`               | `playwright_chrome_py_test` macro + `rules_chrome_playwright` helper      |
+| `playwright_module_js_test`               | `playwright_chrome_js_test` macro + helper, end-to-end                    |
 
 The Playwright tests pull `playwright==1.59.0` hermetically — `rules_python` +
 `smoke_pip` for the Python side, `aspect_rules_js` + `smoke_npm` for Node.

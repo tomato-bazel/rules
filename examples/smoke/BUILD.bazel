@@ -1,5 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@rules_chrome//chrome:defs.bzl", "chrome_run", "chromedriver_run")
+load("@rules_chrome//chrome/playwright:js.bzl", "playwright_chrome_js_test")
+load("@rules_chrome//chrome/playwright:py.bzl", "playwright_chrome_py_test")
 load("@rules_python//python:py_test.bzl", "py_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@smoke_npm//:defs.bzl", "npm_link_all_packages")
@@ -79,4 +81,20 @@ js_test(
         # @chrome via executablePath; its bundled browser is dead weight.
         "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
     },
+)
+
+# `playwright_chrome_py_test` macro smoke: exercises the rules_chrome
+# sub-module abstraction (env wiring + helper module) end-to-end.
+# Ephemeral mode → profile lives under $TEST_TMPDIR.
+playwright_chrome_py_test(
+    name = "playwright_module_py_test",
+    srcs = ["playwright_module_smoke.py"],
+    deps = [requirement("playwright")],
+)
+
+# Same shape, JS side — `playwright_chrome_js_test` macro.
+playwright_chrome_js_test(
+    name = "playwright_module_js_test",
+    data = [":node_modules/playwright"],
+    entry_point = "playwright_module_smoke.js",
 )
