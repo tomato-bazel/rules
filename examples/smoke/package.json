@@ -1,0 +1,12 @@
+{
+  "name": "rules_chrome_smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright (Node) smoke target for rules_chrome.",
+  "dependencies": {
+    "playwright": "1.59.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  }
+}

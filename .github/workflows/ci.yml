@@ -41,6 +41,14 @@ jobs:
           disk-cache: ${{ github.workflow }}-${{ matrix.os }}
           repository-cache: true
 
+      # `rules_python` + `aspect_rules_js` extensions need a python3 and
+      # a node toolchain visible during repo-rule evaluation. Bazel
+      # itself ships neither; ubuntu-latest already has python3 but the
+      # setup-node action gives us a pinned node + npm/pnpm cache.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - run: bazel test //docs/... //examples/... --test_output=errors
 
   # Verify the version refresher tool still parses the upstream JSON

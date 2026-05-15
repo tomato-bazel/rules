@@ -1,5 +1,9 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@rules_chrome//chrome:defs.bzl", "chrome_run", "chromedriver_run")
+load("@rules_python//python:py_test.bzl", "py_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@smoke_npm//:defs.bzl", "npm_link_all_packages")
+load("@smoke_pip//:requirements.bzl", "requirement")
 
 # `bazel run //examples/smoke:chrome` — launches headless chrome with a
 # fresh ephemeral profile. Verifies the toolchain resolves and the
@@ -30,4 +34,49 @@ sh_test(
     srcs = ["version_smoke.sh"],
     args = ["$(rootpath @chromedriver//:chromedriver)"],
     data = ["@chromedriver"],
+)
+
+# Playwright integration: launches headless chrome via the @chrome
+# launcher, drives it over CDP, evaluates a trivial JS expression.
+# Confirms our wrapper survives Playwright's subprocess-spawn /
+# CDP-handshake path (chromedriver isn't in this loop — Playwright
+# speaks CDP directly).
+py_test(
+    name = "playwright_smoke_test",
+    srcs = ["playwright_smoke.py"],
+    args = ["$(rootpath @chrome//:chrome)"],
+    data = ["@chrome"],
+    # Playwright's launch spawns a subprocess and refuses to find its
+    # bundled node driver if PATH is empty under sandboxing — let it
+    # inherit the host PATH. Same goes for HOME (used by tmpdir).
+    env_inherit = [
+        "PATH",
+        "HOME",
+    ],
+    main = "playwright_smoke.py",
+    deps = [requirement("playwright")],
+)
+
+# Materialize the @smoke_npm/* labels under this package so js_test can
+# depend on `//examples/smoke:node_modules/playwright`. The macro
+# expands per pnpm-lock entry — no per-package boilerplate.
+npm_link_all_packages(name = "node_modules")
+
+# Playwright (Node) integration: same shape as the py_test, but
+# exercises Playwright's primary (Node) bindings rather than the Python
+# wrapper. Covers the launcher under a different subprocess-spawn path.
+js_test(
+    name = "playwright_node_smoke_test",
+    args = ["$(rootpath @chrome//:chrome)"],
+    data = [
+        "playwright_smoke.js",
+        ":node_modules/playwright",
+        "@chrome",
+    ],
+    entry_point = "playwright_smoke.js",
+    env = {
+        # Skip the post-install chromium fetch. We point Playwright at
+        # @chrome via executablePath; its bundled browser is dead weight.
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
+    },
 )

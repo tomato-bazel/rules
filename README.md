@@ -175,7 +175,19 @@ bazel run //docs:update
 ```
 
 CI gates this via `bazel test //docs/...` (diff_test against the committed
-output) and the smoke targets in `examples/smoke/`.
+output) and the smoke targets in `examples/smoke/`:
+
+| Target                                    | Exercises                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| `chrome_version_test`                     | `@chrome` launcher → `chrome --version` exits 0                           |
+| `chromedriver_version_test`               | `@chromedriver` launcher → `chromedriver --version` exits 0               |
+| `playwright_smoke_test` (py)              | Python Playwright → `executable_path=@chrome` → about:blank + JS eval     |
+| `playwright_node_smoke_test` (js)         | Node Playwright → same shape, exercises the primary CDP code path         |
+
+The Playwright tests pull `playwright==1.59.0` hermetically — `rules_python` +
+`smoke_pip` for the Python side, `aspect_rules_js` + `smoke_npm` for Node.
+Both are scoped as dev-only `MODULE.bazel` extensions; consumers of
+`rules_chrome` never see them.
 
 To pull a newer Chrome for Testing release:
 
