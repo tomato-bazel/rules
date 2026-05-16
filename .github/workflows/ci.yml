@@ -49,7 +49,7 @@ jobs:
         with:
           node-version: '22'
 
-      - run: bazel test //docs/... //examples/... --test_output=errors
+      - run: bazel test //docs/... //examples/... //tools/... --test_output=errors
 
   # Verify the version refresher tool still parses the upstream JSON
   # cleanly (e.g. CfT didn't rename fields under us). We don't bump

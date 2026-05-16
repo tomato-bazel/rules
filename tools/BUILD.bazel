@@ -1,5 +1,21 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "refresh_versions.py",
 ])
+
+# Unit coverage for the parts of refresh_versions.py that don't need the
+# network (lockfile parse/format + version sort + merge-not-drop). The
+# download-and-hash path is exercised by the maintainer on each version
+# bump; CI separately spot-checks the upstream JSON shape in the
+# `refresher_smoke` workflow job.
+py_test(
+    name = "refresh_versions_test",
+    srcs = ["refresh_versions_test.py"],
+    data = ["refresh_versions.py"],
+    env = {
+        "RULES_CHROME_REFRESHER_PY": "$(rootpath refresh_versions.py)",
+    },
+)

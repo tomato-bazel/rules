@@ -98,3 +98,13 @@ playwright_chrome_js_test(
     data = [":node_modules/playwright"],
     entry_point = "playwright_module_smoke.js",
 )
+
+# Workspace-mode coverage: fakes BUILD_WORKSPACE_DIRECTORY so the
+# launch_persistent_context path that's normally only reachable via
+# `bazel run` (not `bazel test`) gets CI coverage too. Also exercises
+# the helper's clear-error behavior when the env var is missing.
+playwright_chrome_py_test(
+    name = "playwright_workspace_mode_test",
+    srcs = ["workspace_mode_smoke.py"],
+    deps = [requirement("playwright")],
+)
