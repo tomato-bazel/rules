@@ -1,0 +1,15 @@
+load("@rules_huggingface//huggingface:defs.bzl", "hf_model", "hf_upload")
+
+# Smoke targets — verify the rules load + analyze.
+hf_model(
+    name = "qwen_base",
+    repo = "Qwen/Qwen2.5-1.5B-Instruct",
+    revision = "main",
+)
+
+hf_upload(
+    name = "demo_model",
+    repo = "fastverk/demo-model",
+    local_dir = "outputs/demo",
+    private = True,
+)
