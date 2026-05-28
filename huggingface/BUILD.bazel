@@ -1,3 +1,39 @@
+load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
+load("//huggingface/private:toolchain.bzl", "hf_toolchain")
+
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["upload.sh"])
+exports_files([
+    "requirements.in",
+    "requirements_lock.txt",
+    "extensions.bzl",
+])
+
+# ── Hermetic `hf` CLI ─────────────────────────────────────────────
+# The `huggingface_hub` console script, served from the pinned
+# `@hf_pypi` hub. This is the single binary every data-plane rule
+# resolves through the toolchain.
+# `python_version` is pinned so the binary always resolves the 3.12
+# toolchain that backs the `@hf_pypi` hub — independent of the
+# consumer's default python (rules_huggingface's `is_default` is
+# ignored when it isn't the root module).
+py_console_script_binary(
+    name = "hf",
+    pkg = "@hf_pypi//huggingface_hub",
+    python_version = "3.12",
+    script = "hf",
+)
+
+# ── Toolchain ─────────────────────────────────────────────────────
+toolchain_type(name = "toolchain_type")
+
+hf_toolchain(
+    name = "hf_default",
+    hf = ":hf",
+)
+
+toolchain(
+    name = "hf_default_toolchain",
+    toolchain = ":hf_default",
+    toolchain_type = ":toolchain_type",
+)

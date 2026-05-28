@@ -1,60 +1,47 @@
 """rules_huggingface public API.
 
 ```starlark
-load("@rules_huggingface//huggingface:defs.bzl", "hf_model", "hf_upload")
+load(
+    "@rules_huggingface//huggingface:defs.bzl",
+    "hf_model", "hf_upload", "hf_repo", "hf_download",
+)
 ```
 
-* `hf_model`  — typed reference to a HF Hub model/dataset repo
-                (carries `HfModelInfo`; consumers pull at runtime).
-* `hf_upload` — push a local directory to a HF Hub repo. Emits a
-                `<name>.push` runner: `bazel run :<name>.push`.
+Data-plane macros emit a `bazel run`-able runner per the cluster
+verb-suffix convention (mirrors rules_runpod's `.deploy` / `.run`):
 
-The ergonomic home for the trained-artifact lifecycle across the
-fastverk cluster: rules_lora trains an adapter, agora_infer merges
-it into a deployable model, `hf_upload` pushes that model, and a
-`rules_runpod` serverless endpoint serves it.
+* `hf_upload`   → `<name>.push`     — create-if-missing + sync a dir
+* `hf_repo`     → `<name>.create`   — create (or no-op reuse) a repo
+* `hf_download` → `<name>.download` — materialize a repo/files locally
+* `hf_model`    — typed `HfModelInfo` repo reference (no runner)
+
+Every runner drives a hermetic `hf` CLI resolved through
+`//huggingface:toolchain_type` — no system `hf` needed.
 """
 
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//huggingface/private:rules.bzl", _hf_model = "hf_model")
+load(
+    "//huggingface/private:endpoints.bzl",
+    _hf_inference_endpoint = "hf_inference_endpoint",
+)
+load(
+    "//huggingface/private:rules.bzl",
+    _hf_download_rule = "hf_download",
+    _hf_model = "hf_model",
+    _hf_repo_rule = "hf_repo",
+    _hf_upload_rule = "hf_upload",
+)
 
 hf_model = _hf_model
+hf_inference_endpoint = _hf_inference_endpoint
 
-def hf_upload(
-        name,
-        repo,
-        local_dir,
-        repo_type = "model",
-        private = True,
-        visibility = None):
-    """Push a local directory to a HuggingFace Hub repo.
+def hf_upload(name, visibility = None, **kwargs):
+    """Push a local directory to a HF Hub repo. Emits `<name>.push`."""
+    _hf_upload_rule(name = name + ".push", visibility = visibility, **kwargs)
 
-    Emits a `<name>.push` sh_binary. `bazel run :<name>.push`
-    ensures the repo exists (creating it private/public as
-    configured) then uploads `local_dir`. A trailing
-    `bazel run :<name>.push -- <other_dir>` overrides `local_dir`
-    at runtime (useful when the dir is produced by a separate
-    `bazel run` export step).
+def hf_repo(name, visibility = None, **kwargs):
+    """Create (or no-op reuse) a HF Hub repo. Emits `<name>.create`."""
+    _hf_repo_rule(name = name + ".create", visibility = visibility, **kwargs)
 
-    Requires the `hf` CLI on PATH + `HF_TOKEN` in the env.
-
-    Args:
-      name: target name.
-      repo: HF repo id (e.g. `fastverk/agora-parser-qwen2.5-1.5b`).
-      local_dir: default directory to upload, relative to the
-        workspace root.
-      repo_type: `model` (default) or `dataset`.
-      private: create the repo private (default True).
-      visibility: standard.
-    """
-    sh_binary(
-        name = name + ".push",
-        srcs = ["@rules_huggingface//huggingface:upload.sh"],
-        args = [
-            repo,
-            repo_type,
-            "1" if private else "0",
-            local_dir,
-        ],
-        visibility = visibility,
-    )
+def hf_download(name, visibility = None, **kwargs):
+    """Materialize a HF Hub repo/files locally. Emits `<name>.download`."""
+    _hf_download_rule(name = name + ".download", visibility = visibility, **kwargs)

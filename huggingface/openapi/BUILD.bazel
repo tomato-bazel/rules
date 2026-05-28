@@ -1,0 +1,54 @@
+load("@rules_openapi//rust:defs.bzl", "openapi_rust_client")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_rust//rust:defs.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "inference_endpoints.json",
+    "downconvert.py",
+])
+
+# 3.1.0 → 3.0.3 down-converter (progenitor parses 3.0.x only). Pure
+# stdlib; runs under the hermetic 3.12 toolchain.
+py_binary(
+    name = "downconvert",
+    srcs = ["downconvert.py"],
+    main = "downconvert.py",
+)
+
+genrule(
+    name = "inference_endpoints_v30",
+    srcs = ["inference_endpoints.json"],
+    outs = ["inference_endpoints.v30.json"],
+    cmd = "$(execpath :downconvert) $(location inference_endpoints.json) $@",
+    tools = [":downconvert"],
+)
+
+# Typed Rust client for the HF Inference Endpoints API. Runtime deps
+# threaded to @hf_crates so the client + wrapper CLI share one
+# tokio/reqwest instance.
+openapi_rust_client(
+    name = "inference_endpoints_client",
+    spec = ":inference_endpoints_v30",
+    bytes = "@hf_crates//:bytes",
+    chrono = "@hf_crates//:chrono",
+    progenitor_client = "@hf_crates//:progenitor-client",
+    regress = "@hf_crates//:regress",
+    reqwest = "@hf_crates//:reqwest",
+    serde = "@hf_crates//:serde",
+    serde_json = "@hf_crates//:serde_json",
+    uuid = "@hf_crates//:uuid",
+)
+
+# Compile-and-import check: constructing the Client + referencing the
+# generated `types` fails at build time if codegen broke. No real HTTP.
+rust_test(
+    name = "inference_endpoints_client_test",
+    srcs = ["client_test.rs"],
+    edition = "2021",
+    deps = [
+        ":inference_endpoints_client",
+        "@hf_crates//:serde_json",
+    ],
+)
