@@ -1,15 +1,24 @@
-"""WebIDL toolchain — interface and impl-side helper rule.
+"""WebIDL toolchain — the *interface*, plus a small helper rule for impls.
+
+This file defines NO implementation. It only defines the contract that
+every WebIDL-parser implementation must satisfy, and a thin helper rule
+that saves implementations from re-deriving the `ToolchainInfo` wrapping.
+Same shape as `rules_cc`'s `cc_toolchain` (helper rule in rules_cc) vs
+the concrete LLVM/Xcode/MSVC toolchains (impls live in their own repos).
 
 Two things live here:
 
-  * `WebIDLToolchainInfo` — the provider every webidl toolchain implementation
-    must return. Carries a single `runner` label: an executable that parses
-    `.webidl` files passed as positional args and writes a JSON AST to
-    stdout (or to the path in `$WEBIDL_AST_OUT` if set).
+  * `WebIDLToolchainInfo` — the provider every webidl toolchain
+    implementation must return. Carries a single `runner` label: an
+    executable satisfying the CLI contract.
 
-  * `webidl_toolchain` — a thin rule implementations use to expose their
-    runner as a toolchain. Mozilla's `firefox_webidl_parser` declares a
-    `py_binary` wrapping `WebIDL.py` and feeds it here.
+  * `webidl_toolchain` — a thin *helper rule* that takes a `runner` label
+    and wraps it in `ToolchainInfo(webidl_toolchain_info = ...)`. NOT an
+    implementation — implementations instantiate this helper with their
+    actual runner binary (e.g. `firefox_webidl_parser` instantiates it
+    with a `py_binary` wrapping Mozilla's `WebIDL.py`). The instantiation
+    + the `toolchain(...)` registration shim live in the implementation
+    module, NOT here.
 
 Consumers don't load this file directly — they use the rules in
 `//web/webidl:rules.bzl`, which resolve the toolchain via
