@@ -1,0 +1,8 @@
+# Stub. The js_engine_toolchain_type vocabulary will land here when
+# a concrete consumer arrives (likely firefox_spidermonkey, or a
+# d8/quickjs/node implementation).
+
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)

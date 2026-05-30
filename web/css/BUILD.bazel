@@ -1,0 +1,7 @@
+# Stub. The css_toolchain_type vocabulary will land here when a
+# concrete consumer arrives (likely firefox_css_specs).
+
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)

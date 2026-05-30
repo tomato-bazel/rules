@@ -1,0 +1,19 @@
+common --enable_bzlmod
+
+# Bazel module registries. Premium first so its private modules win
+# (firefox_webidl_parser implements webidl_toolchain_type and lives there),
+# then the public fastverk registry, then BCR.
+common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry-premium/main/
+common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://bcr.bazel.build/
+
+# Forward `gh auth token` for private premium-registry fetches.
+common --credential_helper=*.github.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+common --credential_helper=github.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+common --credential_helper=raw.githubusercontent.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+common --credential_helper=codeload.github.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+
+test --test_output=errors
+test --test_summary=terse
+
+try-import %workspace%/user.bazelrc
