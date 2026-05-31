@@ -1,0 +1,23 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Stardoc / bzl_library plumbing for the public Starlark surface.
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    deps = [
+        ":pipeline",
+        ":providers",
+    ],
+)
+
+bzl_library(name = "providers", srcs = ["providers.bzl"])
+
+bzl_library(
+    name = "pipeline",
+    srcs = ["pipeline.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(name = "toolchains", srcs = ["toolchains.bzl"])
