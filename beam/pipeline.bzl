@@ -67,6 +67,7 @@ def beam_pipeline_binary(
         srcs = None,
         deps = None,
         resources = None,
+        data = None,
         native_binaries = None,
         default_options = None,
         visibility = None):
@@ -82,9 +83,15 @@ def beam_pipeline_binary(
         added by the deployer macros when the pipeline is staged for
         that runner.
       resources: classpath resources (configs, prompt templates, etc.).
+      data: runtime data files resolved via Bazel runfiles. Use for
+        binaries the pipeline shells to (sidecars, helper tools) when
+        running locally on DirectRunner. NOTE: data is NOT included in
+        the fat jar — cloud runners (Dataflow, Flink, Spark) won't have
+        access to it. Use `native_binaries` instead for cloud-runnable
+        sidecars.
       native_binaries: targets producing native executables to bundle
         in the fat jar at `/native/<basename>`. The pipeline extracts
-        + execs them at runtime.
+        + execs them at runtime. Cloud-runner compatible.
       default_options: PipelineOptions args passed verbatim by deployers
         when the pipeline runs (e.g. `["--streaming", "--maxNumWorkers=4"]`).
       visibility: forwarded to the produced targets.
@@ -126,6 +133,7 @@ def beam_pipeline_binary(
         deps = deps,
         resources = bundled_resources,
         resource_strip_prefix = "_{}_native".format(name) if native_binaries else None,
+        data = data,
         visibility = visibility,
     )
 
