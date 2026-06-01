@@ -22,3 +22,9 @@ py_binary(
     ],
     main = "pin_fetch.py",
 )
+
+py_binary(
+    name = "merge_ttl",
+    srcs = ["merge_ttl.py"],
+    main = "merge_ttl.py",
+)

@@ -88,6 +88,11 @@ def _research_graph_impl(ctx):
     """Roots are `cited_tex_paper` targets. Walk their citation
     closures (the TexPaperWithCitationsInfo depset already contains
     direct + transitive papers) and dedupe by key.
+
+    `paper_asts` (optional) is a list of LatexAstInfo-providing
+    targets (i.e. `latex_ast_to_rdf` outputs); each contributes a
+    standalone TTL with per-section + per-cite-call subjects that
+    union with the bib closure via the shared `bib:` prefix.
     """
     # Collect every paper reachable from each root. Three contribution
     # paths per root:
@@ -111,10 +116,35 @@ def _research_graph_impl(ctx):
         seen[p.key] = p
     papers = sorted(seen.values(), key = lambda p: p.key)
 
-    # We need a regular File output, so write the TTL via
-    # ctx.actions.write (synchronous, no subprocess).
+    # Step 1: emit the bib-only TTL via ctx.actions.write. This is the
+    # same content the rule used to emit directly; we now keep it as
+    # an intermediate so step 2 can union in paper_asts.
+    bib_ttl = ctx.actions.declare_file(ctx.label.name + "_bib.ttl")
+    ctx.actions.write(bib_ttl, _emit_turtle(papers))
+
+    # Step 2: merge bib_ttl + each paper_asts TTL into the final
+    # output. Always invoked, even when paper_asts is empty — keeps
+    # one code path and ensures consistent prefix-alignment in the
+    # output.
     out = ctx.actions.declare_file(ctx.label.name + ".ttl")
-    ctx.actions.write(out, _emit_turtle(papers))
+    ast_ttls = []
+    for ast in ctx.attr.paper_asts:
+        ast_ttls.extend(ast[DefaultInfo].files.to_list())
+
+    args = ctx.actions.args()
+    args.add("--input", bib_ttl.path)
+    for ttl in ast_ttls:
+        args.add("--input", ttl.path)
+    args.add("--output", out.path)
+
+    ctx.actions.run(
+        executable = ctx.executable._merge,
+        arguments = [args],
+        inputs = [bib_ttl] + ast_ttls,
+        outputs = [out],
+        mnemonic = "MergeResearchGraph",
+        progress_message = "Merging research graph TTL %{label}",
+    )
 
     edge_count = 0
     for p in papers:
@@ -139,8 +169,25 @@ research_graph = rule(
                   "transitive citations contribute nodes + edges. " +
                   "Deduplication is by bibtex key.",
         ),
+        "paper_asts": attr.label_list(
+            doc = "Optional list of `latex_ast_to_rdf` (or any rule that " +
+                  "emits a .ttl in its DefaultInfo files) targets to " +
+                  "union into the closure. Each contributes its own " +
+                  "subjects (latex:Document, latex:Section, " +
+                  "latex:CiteCall, …) and cito:cites edges to " +
+                  "bib:<key> are joined with the closure by shared " +
+                  "URI prefix.",
+            allow_files = [".ttl"],
+        ),
+        "_merge": attr.label(
+            default = Label("//bib/private:merge_ttl"),
+            executable = True,
+            cfg = "exec",
+        ),
     },
     provides = [ResearchGraphInfo],
     doc = "Compute the (paper, cites, paper) RDF graph over the " +
-          "citation closure of one or more papers; emit it as Turtle.",
+          "citation closure of one or more papers; emit it as Turtle. " +
+          "With `paper_asts`, also unions in per-section AST subjects " +
+          "from latex_ast_to_rdf outputs.",
 )
