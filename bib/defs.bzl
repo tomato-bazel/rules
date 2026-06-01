@@ -22,6 +22,7 @@ load(
 )
 load(":cite_lint.bzl", _cite_lint_test = "cite_lint_test")
 load(":cited_tex_paper.bzl", _cited_tex_paper = "cited_tex_paper")
+load(":pin_check.bzl", _pin_check = "pin_check", _pin_check_suite = "pin_check_suite")
 load(
     ":providers.bzl",
     _PaperCitationInfo = "PaperCitationInfo",
@@ -37,6 +38,8 @@ doi_paper = _doi_paper
 manual_citation = _manual_citation
 cited_tex_paper = _cited_tex_paper
 cite_lint_test = _cite_lint_test
+pin_check = _pin_check
+pin_check_suite = _pin_check_suite
 research_graph = _research_graph
 
 # Re-exported provider types.

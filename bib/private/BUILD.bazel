@@ -7,3 +7,18 @@ py_binary(
     srcs = ["lint.py"],
     main = "lint.py",
 )
+
+py_binary(
+    name = "bib_to_bibitem",
+    srcs = ["bib_to_bibitem.py"],
+    main = "bib_to_bibitem.py",
+)
+
+py_binary(
+    name = "pin_fetch",
+    srcs = [
+        "bib_to_bibitem.py",
+        "pin_fetch.py",
+    ],
+    main = "pin_fetch.py",
+)

@@ -1,33 +1,42 @@
-"""`cited_tex_paper(name, srcs, bib_deps, …)` — a citation-aware
-wrapper around `rules_tectonic`'s `tex_paper`.
+"""`cited_tex_paper(name, preamble, sections, bib_deps, …)` — a
+citation-aware wrapper around `rules_tectonic`'s `tex_paper`.
 
 What the macro adds on top of `tex_paper`:
 
-1. Assembles a single `<name>.bib` from the per-citation `.bib`
-   files in `bib_deps`. This file is added to the LaTeX build's
-   srcs so `\\cite{}` resolves.
-2. Runs the cite-lint action against `srcs` — every `\\cite{key}`
-   must have a `bib_deps` entry with that key, else the build
-   fails before LaTeX runs.
-3. Emits `TexPaperWithCitationsInfo` carrying the depset of all
-   transitively reachable citations (via each citation's `cites`
-   attribute). The research-graph rule consumes this.
+1. Assembles a `<name>_bibliography.tex` from the `.bib` snippets
+   contributed by `bib_deps`. The assembly walks each citation's
+   single-entry `.bib` and renders it as a `\\bibitem` inside a
+   single `thebibliography` environment. Passed to `tex_paper`'s
+   `bibliography` attr — drops the need to hand-maintain a
+   separate `bibliography.tex`.
+2. Runs the cite-lint action against the section sources +
+   preamble — every `\\cite{key}` must have a `bib_deps` entry,
+   else the build fails before LaTeX runs.
+3. Emits `TexPaperWithCitationsInfo` carrying the depset of
+   all transitively reachable citations (via each citation's
+   `cites` attribute). The research-graph rule consumes this.
+
+Future direction: rules_bibtex's scope may broaden into
+`rules_research` — a paper is a projection of a body of research,
+and citations are only one kind of provenance edge (code,
+datasets, blog posts, talks all carry the same shape). See the
+`paper_claim_graph` design discussion in the agora roadmap.
 
 ```python
 load("@rules_bibtex//bib:defs.bzl",
-     "arxiv_paper", "doi_paper", "manual_citation", "cited_tex_paper")
+     "arxiv_paper", "manual_citation", "cited_tex_paper")
 load("@rules_tectonic//tectonic:defs.bzl", "tex_section")
 
 arxiv_paper(name = "lewis2020rag", arxiv_id = "2005.11401v4", bibtex = "...")
-doi_paper(name = "banarescu2013amr", doi = "10.18653/v1/W13-2322", bibtex = "...")
 
-tex_section(name = "intro", src = "sections/intro.tex", section_label = "sec:intro")
+tex_section(name = "intro", src = "sections/intro.tex",
+            section_label = "sec:intro")
 
 cited_tex_paper(
     name = "my_paper",
-    main_tex = "main.tex",
+    preamble = "preamble.tex",
     sections = [":intro"],
-    bib_deps = [":lewis2020rag", ":banarescu2013amr"],
+    bib_deps = [":lewis2020rag"],
 )
 ```
 """
@@ -35,29 +44,37 @@ cited_tex_paper(
 load("@rules_tectonic//tectonic:defs.bzl", "tex_paper")
 load(":providers.bzl", "PaperCitationInfo", "TexPaperWithCitationsInfo")
 
-def _assemble_bib_impl(ctx):
-    """Concatenate every bib_dep's single-entry .bib into one combined.bib."""
-    out = ctx.actions.declare_file(ctx.label.name + ".bib")
-    inputs = [dep[PaperCitationInfo].bibtex for dep in ctx.attr.bib_deps]
+def _assemble_bibliography_impl(ctx):
+    """Render every bib_dep's .bib snippet into a single thebibliography .tex.
 
-    if not inputs:
-        ctx.actions.write(out, "% No citations declared.\n")
-        return [DefaultInfo(files = depset([out]))]
+    The actual bibtex → \\bibitem conversion lives in the
+    bib_to_bibitem.py script. We pass it every .bib file from the
+    declared bib_deps and capture the assembled .tex output.
+    """
+    out = ctx.actions.declare_file(ctx.label.name + ".tex")
+    bib_files = [dep[PaperCitationInfo].bibtex for dep in ctx.attr.bib_deps]
 
-    ctx.actions.run_shell(
-        command = "cat \"$@\" > " + out.path,
-        arguments = [f.path for f in inputs],
-        inputs = inputs,
-        outputs = [out],
-        mnemonic = "BibTexAssemble",
-        progress_message = "bibtex assemble %s (%d entries)" % (
-            ctx.label,
-            len(inputs),
-        ),
-    )
+    if not bib_files:
+        ctx.actions.write(out, "% cited_tex_paper: no bib_deps declared.\n")
+    else:
+        args = ctx.actions.args()
+        args.add("--out", out.path)
+        for f in bib_files:
+            args.add("--bib", f.path)
 
-    # Pass through the citations as a depset so research_graph can
-    # walk them.
+        ctx.actions.run(
+            executable = ctx.executable._bib_to_bibitem,
+            arguments = [args],
+            inputs = bib_files,
+            outputs = [out],
+            mnemonic = "BibTexAssemble",
+            progress_message = "bibtex → \\bibitem %s (%d entries)" % (
+                ctx.label,
+                len(bib_files),
+            ),
+        )
+
+    # Carry the transitive citations forward for the research-graph rule.
     transitive = depset(
         direct = [dep[PaperCitationInfo] for dep in ctx.attr.bib_deps],
         transitive = [dep[PaperCitationInfo].cites for dep in ctx.attr.bib_deps],
@@ -65,19 +82,24 @@ def _assemble_bib_impl(ctx):
     return [
         DefaultInfo(files = depset([out])),
         TexPaperWithCitationsInfo(
-            pdf = None,  # filled by cited_tex_paper at the next layer
+            pdf = None,  # filled later if the consumer wires it in
             combined_bib = out,
             citations = transitive,
         ),
     ]
 
-_assemble_bib = rule(
-    implementation = _assemble_bib_impl,
+_assemble_bibliography = rule(
+    implementation = _assemble_bibliography_impl,
     attrs = {
         "bib_deps": attr.label_list(
             providers = [PaperCitationInfo],
             mandatory = True,
-            doc = "Citation targets to concatenate into the assembled .bib.",
+            doc = "Citation targets to render into a single bibliography .tex.",
+        ),
+        "_bib_to_bibitem": attr.label(
+            default = Label("//bib/private:bib_to_bibitem"),
+            executable = True,
+            cfg = "exec",
         ),
     },
     provides = [TexPaperWithCitationsInfo],
@@ -131,9 +153,10 @@ _cite_lint = rule(
 
 def cited_tex_paper(
         name,
-        main_tex,
+        preamble,
         sections = [],
         bib_deps = [],
+        section_srcs = [],
         warn_unused = True,
         visibility = None,
         **kwargs):
@@ -141,50 +164,53 @@ def cited_tex_paper(
 
     Args:
       name: target name. The rendered PDF is `<name>.pdf`.
-      main_tex: top-level .tex file (forwards to rules_tectonic's
-        `tex_paper.main`).
-      sections: list of `tex_section` labels, in include order.
+      preamble: label to a `.tex` containing `\\documentclass{…}`
+        through `\\begin{document}` and any front matter
+        (\\maketitle, abstract). Matches rules_tectonic's
+        `tex_paper.preamble`.
+      sections: ordered list of `tex_section` labels.
       bib_deps: list of citation targets (`arxiv_paper`, `doi_paper`,
-        `manual_citation`, `bibtex_entry`). Their .bib files are
-        concatenated into a single bibliography; cite-lint verifies
-        every `\\cite{}` key resolves.
+        `manual_citation`, `bibtex_entry`). Their `.bib` files are
+        rendered into a `thebibliography` .tex via the
+        `bib_to_bibitem` script and passed as `bibliography` to
+        `tex_paper`; cite-lint verifies every `\\cite{}` key resolves.
+      section_srcs: raw `.tex` files contributing to the cite-lint
+        scan (in addition to `preamble`). Use when a section's
+        actual `.tex` source isn't reachable through the
+        `tex_section` provider — pass the file labels directly so
+        cite-lint sees their content.
       warn_unused: emit a build warning for declared bib_deps that
         are never `\\cite`'d. Default True.
       visibility: forwarded.
       **kwargs: forwarded to `tex_paper`.
     """
 
-    # Step 1: assemble the .bib from bib_deps.
-    bib_name = "_{}_bib".format(name)
-    _assemble_bib(name = bib_name, bib_deps = bib_deps)
+    # Step 1: assemble the bibliography .tex from bib_deps.
+    bib_name = "_{}_bibliography".format(name)
+    _assemble_bibliography(name = bib_name, bib_deps = bib_deps)
 
-    # Step 2: cite-lint. We need every .tex source — both the
-    # `main_tex` and each section's underlying .tex. Sections expose
-    # their source via the rules_tectonic TexSectionInfo provider,
-    # but the simplest V0 path lints the main_tex only and relies on
-    # the LaTeX build to surface section-level issues; sections that
-    # \cite{} a missing key would have surfaced their .tex via the
-    # paper's transitive srcs, so a future enhancement adds an
-    # aspect-based lint that includes section sources.
-    #
-    # V0 caveat documented; the lint here is on `main_tex` alone.
+    # Step 2: cite-lint. Walk the preamble + any section_srcs (the
+    # tex_section provider doesn't expose its .tex source as a file
+    # label in V0 of rules_tectonic, so consumers pass the section
+    # .tex paths explicitly via `section_srcs`).
     lint_name = "_{}_citelint".format(name)
     _cite_lint(
         name = lint_name,
-        srcs = [main_tex],
+        srcs = [preamble] + section_srcs,
         bib_deps = bib_deps,
         warn_unused = warn_unused,
     )
 
     # Step 3: forward to rules_tectonic's `tex_paper`. The assembled
-    # .bib is added to the include set. The cite-lint marker is added
-    # as a data dep so the build action depends on lint success.
+    # bibliography .tex is the `bibliography` argument; the cite-lint
+    # marker is wired in via the `extra_srcs` so the LaTeX build
+    # depends on lint success transitively.
     tex_paper(
         name = name,
-        main = main_tex,
+        preamble = preamble,
         sections = sections,
-        bib = ":" + bib_name,
-        data = [":" + lint_name],
+        bibliography = ":" + bib_name,
+        extra_srcs = kwargs.pop("extra_srcs", []) + [":" + lint_name],
         visibility = visibility,
         **kwargs
     )
