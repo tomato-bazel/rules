@@ -13,6 +13,16 @@ puml_diagram(
     output_format = "png",
 )
 
+# PDF rendering (0.0.2+) — vector PDF directly embeddable in LaTeX
+# papers via `\includegraphics{architecture_pdf.pdf}`. No external
+# toolchain needed; the renderer's classpath includes Apache Batik
+# + FOP for the SVG→PDF step inside the same JVM invocation.
+puml_diagram(
+    name = "architecture_pdf",
+    src = "architecture.puml",
+    output_format = "pdf",
+)
+
 # Composed example: same diagram, split into typed fragments to
 # demonstrate the V1-shape composition. Preamble first, components
 # next, interactions last — declaration order is compose order.

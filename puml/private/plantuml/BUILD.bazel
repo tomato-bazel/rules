@@ -1,12 +1,5 @@
 load("@rules_java//java:defs.bzl", "java_binary")
 
-# Apache PlantUML wrapped as a runnable `java_binary`. The CLI is
-# `net.sourceforge.plantuml.Run` — accepts a `.puml` source on stdin
-# or as an argument and writes the rendered diagram to the current
-# working directory by default (we override via `-o` in the action).
-# Headless mode (`-Djava.awt.headless=true`) is forced via JVM flags
-# so the JVM doesn't try to attach a display when running under
-# Bazel sandbox / CI.
 java_binary(
     name = "plantuml",
     main_class = "net.sourceforge.plantuml.Run",
@@ -16,5 +9,13 @@ java_binary(
     visibility = ["//visibility:public"],
     runtime_deps = [
         "@rules_puml_maven//:net_sourceforge_plantuml_plantuml",
+        # PDF mode: Batik SVGConverter + FOP. Loaded for every
+        # invocation (~few-MB classpath cost) but kept on one binary
+        # because the PUML renderer is short-lived and adding a
+        # separate binary doubles the JVM-startup cost per
+        # render-format. If startup time becomes the bottleneck,
+        # split into `plantuml_svg` (core only) + `plantuml_pdf`.
+        "@rules_puml_maven//:org_apache_xmlgraphics_batik_rasterizer",
+        "@rules_puml_maven//:org_apache_xmlgraphics_fop",
     ],
 )

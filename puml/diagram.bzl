@@ -39,12 +39,20 @@ declarative, the rendered artifact is a downstream consumer.
 
 load(":providers.bzl", "PumlDiagramInfo", "PumlSourceInfo")
 
-_VALID_FORMATS = ["svg", "png"]
+_VALID_FORMATS = ["svg", "png", "pdf"]
 
 # Map PlantUML CLI `-t<fmt>` switches.
 _PUML_FLAG = {
     "svg": "-tsvg",
     "png": "-tpng",
+    # PDF: PlantUML's `-tpdf` delegates to Apache Batik's SVGConverter
+    # + FOP for the SVG→PDF step. Both are on the renderer
+    # `java_binary`'s classpath (//puml/private/plantuml:plantuml),
+    # so this format requires no new toolchain — PlantUML emits SVG
+    # internally and pipes it through Batik/FOP in one JVM
+    # invocation. Output is a real (vector) PDF, LaTeX-embeddable
+    # via `\includegraphics` directly.
+    "pdf": "-tpdf",
 }
 
 def _puml_diagram_render_impl(ctx):
@@ -117,9 +125,11 @@ _puml_diagram_render = rule(
         "output_format": attr.string(
             default = "svg",
             values = _VALID_FORMATS,
-            doc = "Render format. SVG is the LaTeX-friendly default " +
-                  "(consumers either use the `svg` package or " +
-                  "pre-convert to PDF). PNG is the rasterized form.",
+            doc = "Render format: `svg` (vector, web-friendly), `pdf` " +
+                  "(vector, LaTeX-embeddable via `\\includegraphics`), " +
+                  "or `png` (rasterized). PDF rendering runs through " +
+                  "Batik+FOP on the same JVM as the PlantUML core; no " +
+                  "external toolchain required.",
         ),
         "basename": attr.string(
             mandatory = True,

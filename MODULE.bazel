@@ -12,7 +12,7 @@
 
 module(
     name = "rules_puml",
-    version = "0.0.1",
+    version = "0.0.2",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -29,6 +29,14 @@ maven.install(
         # downstream consumers can override with `maven.override` if a
         # specific version is required).
         "net.sourceforge.plantuml:plantuml:1.2024.7",
+        # PDF rendering. PlantUML's `-tpdf` mode delegates to Apache
+        # Batik's SVGConverter + FOP for the SVG→PDF step but does not
+        # bundle them; both must be on the classpath. The combined
+        # batik-rasterizer + fop pair brings every transitive Batik
+        # module Batik's PDF transcoder reaches for (xmlgraphics-commons,
+        # avalon-framework, etc).
+        "org.apache.xmlgraphics:batik-rasterizer:1.18",
+        "org.apache.xmlgraphics:fop:2.10",
     ],
     lock_file = "//:maven_install.json",
 )
