@@ -1,0 +1,20 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+
+# Apache PlantUML wrapped as a runnable `java_binary`. The CLI is
+# `net.sourceforge.plantuml.Run` — accepts a `.puml` source on stdin
+# or as an argument and writes the rendered diagram to the current
+# working directory by default (we override via `-o` in the action).
+# Headless mode (`-Djava.awt.headless=true`) is forced via JVM flags
+# so the JVM doesn't try to attach a display when running under
+# Bazel sandbox / CI.
+java_binary(
+    name = "plantuml",
+    main_class = "net.sourceforge.plantuml.Run",
+    jvm_flags = [
+        "-Djava.awt.headless=true",
+    ],
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        "@rules_puml_maven//:net_sourceforge_plantuml_plantuml",
+    ],
+)

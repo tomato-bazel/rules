@@ -1,0 +1,22 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam defaultFontName Menlo
+
+actor "Software Engineer" as user
+component "DecomposeFn\n(gemma3:1b)" as dec
+component "ClaimProposeFn\n(Haiku, cached)" as prop
+component "CompositeMergeFn\n(Jena)" as merge
+component "DeriveGate\n(Rust sidecar)" as gate
+database "ClaimCache\n(proto, content-addressable)" as cache
+
+user --> dec : NL intent
+dec --> prop : KV<nl, Claim>
+prop --> merge : KV<nl, Fragment>
+merge --> gate : KV<nl, Graph>
+gate --> user : CorpusExample
+
+prop <--> cache
+
+@enduml
