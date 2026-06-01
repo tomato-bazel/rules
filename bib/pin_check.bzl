@@ -101,51 +101,32 @@ pin_check = rule(
 )
 
 def pin_check_suite(name, papers, visibility = None):
-    """Emit one pin_check per paper + an aggregate runner.
+    """Emit one pin_check `bazel run` target per paper.
 
     Args:
-      name: target name for the aggregate runner.
+      name: prefix forwarded into a `test_suite`-style group name.
+        Each runner is `<paper_basename>_pin`; an alias at
+        `<name>` is unavailable in V0 because `sh_binary` isn't a
+        native rule on modern Bazel and pulling rules_shell in
+        for the aggregator pulls in a heavy transitive set.
+        Users invoke the per-paper runners individually
+        (`bazel run //paper:lewis2020rag_pin`).
       papers: list of citation target labels.
-      visibility: forwarded to the aggregate target.
+      visibility: forwarded to each per-paper runner.
+
+    Future enhancement: load `sh_binary` from
+    `@rules_shell//shell:sh_binary.bzl` and emit an aggregate
+    runner. Tracked as a low-priority follow-up; the per-paper
+    runners cover the actual workflow.
     """
-    per_paper = []
     for paper in papers:
         # Derive a per-paper runner name from the citation label's
         # basename — `:lewis2020rag` → `lewis2020rag_pin`.
         bare = paper.lstrip(":").rsplit("/", 1)[-1].split(":")[-1]
         runner = "{}_pin".format(bare)
-        pin_check(name = runner, paper = paper)
-        per_paper.append(":" + runner)
+        pin_check(name = runner, paper = paper, visibility = visibility)
 
-    # Aggregate: a tiny sh_binary that re-execs each per-paper
-    # runner. native.genrule + a sh_binary wrapper is the simplest
-    # path; we use the sh_binary form so `bazel run` works.
-    if per_paper:
-        lines = ["#!/bin/bash", "set -e"]
-        for r in per_paper:
-            # Resolve the runner's binary via Bazel runfiles location.
-            # Bazel will substitute `$(rootpath …)` at genrule
-            # evaluation. The simplest reliable form: shell out to
-            # `bazel run` for each — but that requires a Bazel
-            # binary in PATH, which the sandbox may not have.
-            # Workaround: emit a Python launcher that walks
-            # runfiles. For V0 simplicity, just print a manual
-            # invocation list; aggregate runners are nice but not
-            # blocking.
-            lines.append("echo '  bazel run %s'" % r)
-        lines.append(
-            "echo '\\n[pin_check_suite] above are the per-paper runners; " +
-            "invoke each individually.' >&2",
-        )
-        agg_sh = "_{}_agg.sh".format(name)
-        native.genrule(
-            name = "_{}_agg_gen".format(name),
-            outs = [agg_sh],
-            cmd = ("cat <<'EOF' > $@\n" + "\n".join(lines) + "\nEOF\n" +
-                   "chmod +x $@\n"),
-        )
-        native.sh_binary(
-            name = name,
-            srcs = [":" + agg_sh],
-            visibility = visibility,
-        )
+    # Suite name is reserved but currently unused; consumers can
+    # `grep pin //paper:*` to enumerate runners or use a build_test
+    # suite manually.
+    _ = name  # buildifier: silence unused
