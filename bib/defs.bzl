@@ -20,6 +20,7 @@ load(
     _doi_paper = "doi_paper",
     _manual_citation = "manual_citation",
 )
+load(":cite_lint.bzl", _cite_lint_test = "cite_lint_test")
 load(":cited_tex_paper.bzl", _cited_tex_paper = "cited_tex_paper")
 load(
     ":providers.bzl",
@@ -35,6 +36,7 @@ arxiv_paper = _arxiv_paper
 doi_paper = _doi_paper
 manual_citation = _manual_citation
 cited_tex_paper = _cited_tex_paper
+cite_lint_test = _cite_lint_test
 research_graph = _research_graph
 
 # Re-exported provider types.
