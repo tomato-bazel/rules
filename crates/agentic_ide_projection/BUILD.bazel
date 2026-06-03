@@ -16,6 +16,7 @@ rust_library(
     deps = [
         "@crates//:anyhow",
         "@crates//:serde_json",
+        "@crates//:sha2",
     ],
 )
 

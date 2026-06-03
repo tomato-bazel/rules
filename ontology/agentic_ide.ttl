@@ -34,7 +34,13 @@
     dcterms:title "Agentic IDE projection ontology" ;
     dcterms:description
         "The forward/authoring vocabulary (aide:) for projecting a single normalized knowledge graph into per-IDE agent-config files — skills, subagents, slash commands, rulesets, MCP config, settings, hooks — across Claude Code, GitHub Copilot, and Cursor. Authored definitions reshape, via per-IDE CONSTRUCT queries, into the generic aide:OutputFile filespec the serializer materializes." ;
-    owl:versionInfo "0.0.1" .
+    owl:versionInfo "0.0.2" .
+
+# Versioning convention (see docs/upgrading.md, migrations/README.md):
+# additive terms = minor bump; a term to be removed is first marked
+# `owl:deprecated true` for a full major (validate warns, still passes),
+# then removed on the next major paired with a migrations/<from>-to-<to>.rq
+# codemod. So minor bumps never break a consumer's authored graph.
 
 # ---- Content-addressed blob (self-contained; severs the chat: coupling) ----
 
@@ -137,6 +143,35 @@ aide:listItem a owl:ObjectProperty ; rdfs:domain aide:Entry ; rdfs:range aide:En
 aide:subEntry a owl:ObjectProperty ; rdfs:domain aide:Entry ; rdfs:range aide:Entry ;
     rdfs:comment "A nested map entry (an aide:Entry), for nested-object frontmatter." .
 
+# ---- MCP host (the launcher mechanism) ----
+#
+# A server's runnable is produced + pinned by a host. The host is an
+# authoring-time concept: the mcp_*_server Bazel rules resolve (host,
+# package) into a hermetic launcher target and emit the concrete
+# aide:mcpFlavor (BazelTarget for any runnable, Network for remotes) +
+# aide:bazelLabel the projection consumes. So every runnable server
+# projects uniformly to `bazel run <label>`; only NetworkHost stays a URL.
+
+aide:McpHost a owl:Class ; rdfs:label "MCP server host / launcher mechanism" .
+aide:BazelHost   a aide:McpHost ; rdfs:comment "A first-party `bazel run`-able target; pinned by source." .
+aide:NpmHost     a aide:McpHost ; rdfs:comment "An npm package, pinned by pnpm-lock.yaml, launched hermetically via aspect_rules_js." .
+aide:PypiHost    a aide:McpHost ; rdfs:comment "A PyPI package, pinned by uv.lock, launched hermetically via rules_uv." .
+aide:OciHost     a aide:McpHost ; rdfs:comment "A container image, pinned by digest, via rules_oci." .
+aide:NetworkHost a aide:McpHost ; rdfs:comment "A remote HTTP/SSE endpoint — no local launch." .
+aide:SystemHost  a aide:McpHost ; rdfs:comment "A raw system binary on PATH — non-hermetic escape hatch (flagged)." .
+
+aide:host a owl:ObjectProperty ; rdfs:domain aide:McpServer ; rdfs:range aide:McpHost .
+aide:package a owl:DatatypeProperty ; rdfs:domain aide:McpServer ; rdfs:range xsd:string ;
+    rdfs:comment "Package name for an NpmHost/PypiHost server (lock-pinned)." .
+aide:packageVersion a owl:DatatypeProperty ; rdfs:domain aide:McpServer ; rdfs:range xsd:string ;
+    rdfs:comment "Optional version constraint; the lockfile is the actual pin." .
+aide:entryPoint a owl:DatatypeProperty ; rdfs:domain aide:McpServer ; rdfs:range xsd:string ;
+    rdfs:comment "The bin / console-script to launch within the package (defaults to the package's default bin)." .
+aide:image a owl:DatatypeProperty ; rdfs:domain aide:McpServer ; rdfs:range xsd:string ;
+    rdfs:comment "OCI image ref for an OciHost server." .
+aide:imageDigest a owl:DatatypeProperty ; rdfs:domain aide:McpServer ; rdfs:range xsd:string ;
+    rdfs:comment "Pinned sha256 digest for an OciHost image." .
+
 # ---- MCP server properties ----
 
 aide:mcpFlavor  a owl:ObjectProperty  ; rdfs:domain aide:McpServer ; rdfs:range aide:McpFlavor .
@@ -175,6 +210,23 @@ aide:forIde      a owl:ObjectProperty  ; rdfs:domain aide:OutputFile ; rdfs:rang
 aide:fromDef     a owl:ObjectProperty  ; rdfs:domain aide:OutputFile ; rdfs:range aide:Definition ;
     rdfs:comment "Provenance: the authored definition this file was projected from." .
 
+# Multi-body output: an OutputFile can concatenate several ordered body
+# fragments — e.g. one CLAUDE.md built from a root ruleset + N scoped topic
+# rules, where the target IDE has no native multi-file rule support. Each
+# fragment is an aide:Entry carrying aide:bodyPath (the fragment body),
+# aide:order, and an optional aide:fragmentHeader (a heading before it).
+# When present, bodyFragments take precedence over a single body.
+aide:bodyFragment a owl:ObjectProperty ; rdfs:domain aide:OutputFile ; rdfs:range aide:Entry ;
+    rdfs:comment "An ordered body fragment (aide:bodyPath + aide:order + optional aide:fragmentHeader)." .
+aide:fragmentHeader a owl:DatatypeProperty ; rdfs:domain aide:Entry ; rdfs:range xsd:string ;
+    rdfs:comment "A markdown heading inserted before a body fragment (e.g. '## Architecture')." .
+
+# Strip the body's own leading YAML frontmatter block when the target
+# format supplies its own frontmatter. Skills keep frontmatter in-body
+# (right for Claude's SKILL.md), but the Cursor .mdc / Copilot shim emit
+# a reshaped per-IDE frontmatter over a frontmatter-free body.
+aide:stripBodyFrontmatter a owl:DatatypeProperty ; rdfs:domain aide:OutputFile ; rdfs:range xsd:boolean .
+
 # JSON / MCP-config output shape. Unlike markdown files (frontmatter +
 # body), a .mcp.json aggregates N MCP servers into one structured file,
 # so the projection attaches each server as an aide:mcpEntry on a single
@@ -182,6 +234,8 @@ aide:fromDef     a owl:ObjectProperty  ; rdfs:domain aide:OutputFile ; rdfs:rang
 aide:JsonShape a owl:Class ; rdfs:label "Structured JSON output shape" .
 aide:McpConfig a aide:JsonShape ;
     rdfs:comment "An MCP server config file (.mcp.json / .vscode/mcp.json / .cursor/mcp.json)." .
+aide:SettingsConfig a aide:JsonShape ;
+    rdfs:comment "A Claude settings file (.claude/settings.json) — permissions.allow + permissions.additionalDirectories." .
 
 aide:jsonShape a owl:ObjectProperty ; rdfs:domain aide:OutputFile ; rdfs:range aide:JsonShape ;
     rdfs:comment "For an aide:Json file, the structured shape the serializer builds (vs. a free-form body)." .

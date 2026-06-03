@@ -1,0 +1,45 @@
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix aide: <https://fastverk.dev/ontology/agentic_ide/projection#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL shapes for the aide: authoring vocabulary. `validate` runs these
+# against a consumer's .agents/graph before projection, so a version bump
+# or a bad hand-edit fails loudly with a fix-it message instead of
+# producing broken config. Constraints are intentionally minimal — the
+# floor every projection query relies on.
+
+aide:SkillShape a sh:NodeShape ;
+    sh:targetClass aide:Skill ;
+    sh:property [
+        sh:path aide:defName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "aide:Skill needs exactly one aide:defName (the projected file name)." ] ;
+    sh:property [
+        sh:path aide:bodyPath ; sh:maxCount 1 ;
+        sh:message "aide:Skill takes at most one aide:bodyPath." ] .
+
+aide:RulesetShape a sh:NodeShape ;
+    sh:targetClass aide:Ruleset ;
+    sh:property [
+        sh:path aide:defName ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "aide:Ruleset needs exactly one aide:defName." ] ;
+    sh:property [
+        sh:path aide:bodyPath ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "aide:Ruleset needs an aide:bodyPath (the rule body to project)." ] .
+
+aide:McpServerShape a sh:NodeShape ;
+    sh:targetClass aide:McpServer ;
+    sh:property [
+        sh:path aide:defName ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "aide:McpServer needs exactly one aide:defName (its key in .mcp.json)." ] ;
+    # A server is either a remote (aide:url) or a launchable (aide:mcpFlavor
+    # / aide:host). Require at least one of the two so it can be projected.
+    sh:or (
+        [ sh:property [ sh:path aide:mcpFlavor ; sh:minCount 1 ] ]
+        [ sh:property [ sh:path aide:host ; sh:minCount 1 ] ]
+        [ sh:property [ sh:path aide:url ; sh:minCount 1 ] ]
+    ) .
+
+aide:SettingsShape a sh:NodeShape ;
+    sh:targetClass aide:Settings ;
+    sh:property [
+        sh:path aide:permissionAllow ; sh:datatype xsd:string ] .

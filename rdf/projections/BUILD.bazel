@@ -4,6 +4,12 @@ load("//rules:defs.bzl", "agent_bundle", "agent_ruleset", "agent_skill", "mcp_se
 
 package(default_visibility = ["//visibility:public"])
 
+# The per-IDE projection CONSTRUCT queries, exported so consumer repos
+# (e.g. savvi-studio-full/.agents) can reference them in their own
+# agent_bundle / sparql_query targets:
+#   "@rules_agentic_ide//rdf/projections:claude_code/mcp.rq"
+exports_files(glob(["**/*.rq"]))
+
 # The canonical authored graph the projection queries run against. In a
 # consumer repo this is the repo's .agents/graph/*.ttl plus the generic
 # library graphs (//rdf/defs); here it's a small example. No reasoning

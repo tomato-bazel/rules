@@ -27,6 +27,9 @@ pub struct GeneratedFile {
     /// Repo-relative path.
     pub path: String,
     pub status: Status,
+    /// Lowercase hex SHA-256 of the rendered content (for the manifest /
+    /// drift check). Computed even on a dry run.
+    pub sha256: String,
 }
 
 /// Render a single output file to its on-disk bytes. `repo_root`
@@ -45,6 +48,7 @@ pub fn render(out: &OutputFile, repo_root: &Path) -> Result<String> {
 fn render_json(out: &OutputFile) -> Result<String> {
     match &out.json_shape {
         Some(JsonShape::McpConfig) => render_mcp_config(out),
+        Some(JsonShape::Settings) => render_settings(out),
         Some(JsonShape::Other(s)) => bail!(
             "unsupported aide:jsonShape <{s}> for {}",
             out.target_path
@@ -54,6 +58,30 @@ fn render_json(out: &OutputFile) -> Result<String> {
             out.target_path
         ),
     }
+}
+
+/// Build a Claude settings file (.claude/settings.json) from the
+/// permission allow list + additional directories. Both are normalized
+/// (sorted, deduped) by the filespec parser, so output is byte-stable.
+fn render_settings(out: &OutputFile) -> Result<String> {
+    use serde_json::{Map, Value};
+
+    let arr =
+        |items: &[String]| Value::Array(items.iter().map(|s| Value::String(s.clone())).collect());
+    let mut perms = Map::new();
+    perms.insert("allow".to_string(), arr(&out.settings_allow));
+    if !out.settings_dirs.is_empty() {
+        perms.insert("additionalDirectories".to_string(), arr(&out.settings_dirs));
+    }
+    let root = Value::Object({
+        let mut m = Map::new();
+        m.insert("permissions".to_string(), Value::Object(perms));
+        m
+    });
+    let mut s = serde_json::to_string_pretty(&root)
+        .with_context(|| format!("serializing {}", out.target_path))?;
+    s.push('\n');
+    Ok(s)
 }
 
 /// Build an MCP config file (.mcp.json) from the aggregated server
@@ -110,13 +138,16 @@ fn mcp_server_json(s: &McpServerSpec) -> serde_json::Value {
         }
         McpFlavor::BazelTarget => {
             // Hermetic: launch the upstream target via `bazel run <label>`.
+            // Any server args pass through after `--` (e.g. ${workspaceFolder}).
             obj.insert("type".into(), Value::String("stdio".into()));
             obj.insert("command".into(), Value::String("bazel".into()));
             let label = s.bazel_label.clone().unwrap_or_default();
-            obj.insert(
-                "args".into(),
-                Value::Array(vec![Value::String("run".into()), Value::String(label)]),
-            );
+            let mut args = vec![Value::String("run".into()), Value::String(label)];
+            if !s.args.is_empty() {
+                args.push(Value::String("--".into()));
+                args.extend(s.args.iter().map(|(_, a)| Value::String(a.clone())));
+            }
+            obj.insert("args".into(), Value::Array(args));
         }
         McpFlavor::Other(iri) => {
             obj.insert("_unknownFlavor".into(), Value::String(iri.clone()));
@@ -185,8 +216,32 @@ fn render_markdown(out: &OutputFile, repo_root: &Path) -> Result<String> {
         emit_frontmatter(&mut s, &out.frontmatter, 0);
         s.push_str("---\n");
     }
-    let body = resolve_body(&out.body, repo_root)
-        .with_context(|| format!("resolving body for {}", out.target_path))?;
+    // Multi-body: concatenate ordered fragments (optional heading + body),
+    // each separated by a blank line. Used for one-file IDEs that have no
+    // native multi-rule support (e.g. CLAUDE.md from root + topic rules).
+    let body = if !out.body_fragments.is_empty() {
+        let mut parts: Vec<String> = Vec::new();
+        for f in &out.body_fragments {
+            let frag = resolve_body(&Body::Path(f.body_path.clone()), repo_root)
+                .with_context(|| format!("resolving fragment for {}", out.target_path))?;
+            let mut chunk = String::new();
+            if let Some(h) = &f.header {
+                chunk.push_str(h);
+                chunk.push_str("\n\n");
+            }
+            chunk.push_str(frag.trim_end_matches('\n'));
+            parts.push(chunk);
+        }
+        parts.join("\n\n")
+    } else {
+        let raw = resolve_body(&out.body, repo_root)
+            .with_context(|| format!("resolving body for {}", out.target_path))?;
+        if out.strip_body_frontmatter {
+            strip_frontmatter(&raw)
+        } else {
+            raw
+        }
+    };
     if !body.is_empty() {
         // Single blank line between frontmatter and body for readability.
         if !out.frontmatter.is_empty() {
@@ -198,6 +253,20 @@ fn render_markdown(out: &OutputFile, repo_root: &Path) -> Result<String> {
         }
     }
     Ok(s)
+}
+
+/// Strip a leading YAML frontmatter block (`---\n…\n---\n`) from a body,
+/// so a format that supplies its own frontmatter doesn't nest the source's.
+fn strip_frontmatter(body: &str) -> String {
+    if let Some(rest) = body.strip_prefix("---\n") {
+        if let Some(end) = rest.find("\n---\n") {
+            return rest[end + 5..].trim_start_matches('\n').to_string();
+        }
+        if rest.strip_suffix("\n---").is_some() {
+            return String::new(); // entire body was frontmatter
+        }
+    }
+    body.to_string()
 }
 
 fn resolve_body(body: &Body, repo_root: &Path) -> Result<String> {
@@ -269,7 +338,19 @@ pub fn write_all(files: &[OutputFile], repo_root: &Path, dry_run: bool) -> Resul
         results.push(GeneratedFile {
             path: out.target_path.clone(),
             status,
+            sha256: sha256_hex(content.as_bytes()),
         });
     }
     Ok(results)
+}
+
+/// Lowercase-hex SHA-256 of `bytes`.
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(bytes);
+    let mut s = String::with_capacity(64);
+    for b in digest {
+        s.push_str(&format!("{b:02x}"));
+    }
+    s
 }

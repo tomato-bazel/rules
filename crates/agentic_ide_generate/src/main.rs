@@ -30,6 +30,12 @@ struct Cli {
     /// Report what would change without writing anything.
     #[arg(long)]
     dry_run: bool,
+    /// Drift gate: render and diff content hashes against
+    /// .agents/generated.lock without writing. Exits non-zero if the
+    /// generated files are out of date (graph edit or version bump not
+    /// regenerated). Intended for CI.
+    #[arg(long)]
+    check: bool,
 }
 
 fn main() -> Result<()> {
@@ -40,6 +46,10 @@ fn main() -> Result<()> {
         .out
         .or_else(|| std::env::var_os("BUILD_WORKSPACE_DIRECTORY").map(PathBuf::from))
         .unwrap_or_else(|| PathBuf::from("."));
+
+    if cli.check {
+        return run_check(&cli.filespec, &repo_root);
+    }
 
     let results = agentic_ide_projection::generate(&cli.filespec, &repo_root, cli.dry_run)
         .context("projecting agent-config files")?;
@@ -70,4 +80,32 @@ fn main() -> Result<()> {
         if cli.dry_run { " [dry-run]" } else { "" }
     );
     Ok(())
+}
+
+/// Drift gate: compare freshly-rendered hashes to .agents/generated.lock.
+/// Prints the drift and exits non-zero if anything is stale.
+fn run_check(filespec: &std::path::Path, repo_root: &std::path::Path) -> Result<()> {
+    let drift = agentic_ide_projection::check(filespec, repo_root)
+        .context("checking generated-file drift")?;
+    for p in &drift.added {
+        println!("added    {p}");
+    }
+    for p in &drift.changed {
+        println!("changed  {p}");
+    }
+    for p in &drift.removed {
+        println!("removed  {p}");
+    }
+    if drift.is_clean() {
+        eprintln!("generated files are up to date with .agents/generated.lock");
+        Ok(())
+    } else {
+        eprintln!(
+            "drift: {} added, {} changed, {} removed — run `generate` and commit .agents/generated.lock",
+            drift.added.len(),
+            drift.changed.len(),
+            drift.removed.len()
+        );
+        std::process::exit(1);
+    }
 }

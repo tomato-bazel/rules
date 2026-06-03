@@ -1,4 +1,4 @@
-module(name = "rules_agentic_ide", version = "0.0.1")
+module(name = "rules_agentic_ide", version = "0.0.2")
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
@@ -21,6 +21,7 @@ register_toolchains("@rust_toolchains//:all")
 crate = use_extension("@rules_rust//crate_universe:extension.bzl", "crate", isolate = True)
 crate.spec(package = "anyhow", version = "1.0")
 crate.spec(package = "serde_json", version = "1.0")
+crate.spec(package = "sha2", version = "0.10")
 crate.spec(features = ["derive"], package = "clap", version = "4.5")
 crate.from_specs(name = "crates")
 use_repo(crate, "crates")

@@ -79,12 +79,26 @@ pub enum Body {
     None,
 }
 
+/// One ordered fragment of a multi-body output file (e.g. CLAUDE.md built
+/// from a root ruleset + N topic rules). Concatenated by `aide:order`.
+#[derive(Debug, Clone)]
+pub struct BodyFragment {
+    pub order: i64,
+    /// Optional markdown heading inserted before the fragment body.
+    pub header: Option<String>,
+    /// Repo-relative path to the fragment body.
+    pub body_path: String,
+}
+
 /// The structured shape of an `aide:Json` output file (vs. a free-form
 /// body). The serializer builds the JSON from the graph, not a string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JsonShape {
     /// An MCP server config (.mcp.json) — aggregates `aide:mcpEntry` servers.
     McpConfig,
+    /// A Claude settings file (.claude/settings.json) — permissions allow
+    /// list + additional directories.
+    Settings,
     Other(String),
 }
 
@@ -92,6 +106,7 @@ impl JsonShape {
     fn from_iri(iri: &str) -> Self {
         match iri.strip_prefix(NS) {
             Some("McpConfig") => JsonShape::McpConfig,
+            Some("SettingsConfig") => JsonShape::Settings,
             _ => JsonShape::Other(iri.to_string()),
         }
     }
@@ -168,6 +183,16 @@ pub struct OutputFile {
     pub json_shape: Option<JsonShape>,
     /// MCP server entries (when `json_shape == McpConfig`).
     pub mcp_servers: Vec<McpServerSpec>,
+    /// `permissions.allow` entries (when `json_shape == Settings`). Sorted.
+    pub settings_allow: Vec<String>,
+    /// `permissions.additionalDirectories` entries (when Settings). Sorted.
+    pub settings_dirs: Vec<String>,
+    /// Ordered body fragments; when non-empty, concatenated as the body
+    /// (takes precedence over `body`). Sorted by `order`.
+    pub body_fragments: Vec<BodyFragment>,
+    /// Strip the resolved body's own leading `---…---` frontmatter (the
+    /// target format supplies its own).
+    pub strip_body_frontmatter: bool,
 }
 
 /// Parse an N-Triples filespec into the output files it describes.
@@ -217,6 +242,10 @@ fn build_output(
     let mut body_path: Option<String> = None;
     let mut json_shape: Option<JsonShape> = None;
     let mut mcp_servers = Vec::new();
+    let mut settings_allow: Vec<String> = Vec::new();
+    let mut settings_dirs: Vec<String> = Vec::new();
+    let mut body_fragments: Vec<BodyFragment> = Vec::new();
+    let mut strip_body_frontmatter = false;
 
     for (p, o) in props {
         match p.strip_prefix(NS) {
@@ -255,6 +284,26 @@ fn build_output(
                     mcp_servers.push(read_mcp_entry(entry_props, spo));
                 }
             }
+            Some("permissionAllow") => {
+                if let Term::Lit(v) = o {
+                    settings_allow.push(v.clone());
+                }
+            }
+            Some("additionalDirectory") => {
+                if let Term::Lit(v) = o {
+                    settings_dirs.push(v.clone());
+                }
+            }
+            Some("bodyFragment") => {
+                if let Some(fp) = lookup(o, spo) {
+                    body_fragments.push(read_fragment(fp));
+                }
+            }
+            Some("stripBodyFrontmatter") => {
+                if let Term::Lit(v) = o {
+                    strip_body_frontmatter = v == "true";
+                }
+            }
             _ => {}
         }
     }
@@ -270,6 +319,13 @@ fn build_output(
 
     frontmatter.sort_by_key(|e| e.order);
     mcp_servers.sort_by(|a, b| a.name.cmp(&b.name));
+    // Permission lists are sets — normalize to a deterministic (sorted)
+    // order so projected settings.json is byte-stable.
+    settings_allow.sort();
+    settings_allow.dedup();
+    settings_dirs.sort();
+    settings_dirs.dedup();
+    body_fragments.sort_by_key(|f| f.order);
     if target_path.is_empty() {
         bail!("aide:OutputFile is missing aide:targetPath");
     }
@@ -280,6 +336,10 @@ fn build_output(
         body,
         json_shape,
         mcp_servers,
+        settings_allow,
+        settings_dirs,
+        body_fragments,
+        strip_body_frontmatter,
     })
 }
 
@@ -365,6 +425,25 @@ fn read_arg(props: &[(String, Term)]) -> (String, i64) {
         }
     }
     (val, order)
+}
+
+fn read_fragment(props: &[(String, Term)]) -> BodyFragment {
+    let mut order = i64::MAX;
+    let mut header = None;
+    let mut body_path = String::new();
+    for (p, o) in props {
+        match (p.strip_prefix(NS), o) {
+            (Some("order"), Term::Lit(v)) => order = v.parse().unwrap_or(i64::MAX),
+            (Some("fragmentHeader"), Term::Lit(v)) => header = Some(v.clone()),
+            (Some("bodyPath"), Term::Lit(v)) => body_path = v.clone(),
+            _ => {}
+        }
+    }
+    BodyFragment {
+        order,
+        header,
+        body_path,
+    }
 }
 
 fn read_kv(props: &[(String, Term)]) -> (String, String) {

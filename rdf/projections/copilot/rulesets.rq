@@ -1,33 +1,29 @@
-# Copilot ruleset projection — the full-body repository-instructions doc.
+# Copilot ruleset projection.
 #
-# Each authored aide:Ruleset becomes one aide:OutputFile describing
-# .github/copilot-instructions.md (markdown + YAML frontmatter, full
-# body). Unlike the Copilot *skill* shim (link, don't duplicate), the
-# repository-instructions file is a single repo-scoped document Copilot
-# reads directly, so the canonical body is materialized in full. The
-# per-IDE path policy lives entirely in the BIND below.
+# Copilot reads a single repo-wide .github/copilot-instructions.md, so —
+# like the Claude CLAUDE.md projection — every authored aide:Ruleset folds
+# into ONE file as an ordered body fragment (root preamble + topic rules
+# under their aide:fragmentHeader). The serializer concatenates them in
+# aide:order. (Scoped .github/instructions/*.instructions.md is a later
+# refinement for per-glob rules.)
 PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
 
 CONSTRUCT {
-    ?out a aide:OutputFile ;
-        aide:targetPath ?path ;
+    aide:out_copilot_ruleset a aide:OutputFile ;
+        aide:targetPath ".github/copilot-instructions.md" ;
         aide:fileFormat aide:MarkdownYaml ;
         aide:forIde aide:Copilot ;
-        aide:fromDef ?ruleset ;
-        aide:bodyPath ?body ;
-        aide:frontmatter ?fm .
-    ?fm aide:key ?fk ; aide:value ?fv ; aide:order ?fo .
+        aide:bodyFragment ?frag .
+    ?frag aide:bodyPath ?body ;
+        aide:order ?order ;
+        aide:fragmentHeader ?header .
 }
 WHERE {
-    ?ruleset a aide:Ruleset ;
-        aide:defName ?name .
-    OPTIONAL { ?ruleset aide:bodyPath ?body }
-    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/copilot/ruleset/", ?name)) AS ?out)
-    BIND(".github/copilot-instructions.md" AS ?path)
-    OPTIONAL {
-        ?ruleset aide:frontmatter ?fm .
-        ?fm aide:key ?fk ;
-            aide:value ?fv .
-        OPTIONAL { ?fm aide:order ?fo }
-    }
+    ?rs a aide:Ruleset ;
+        aide:defName ?name ;
+        aide:bodyPath ?body .
+    OPTIONAL { ?rs aide:order ?o }
+    BIND(COALESCE(?o, 0) AS ?order)
+    OPTIONAL { ?rs aide:fragmentHeader ?header }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#frag/copilot/ruleset/", ?name)) AS ?frag)
 }
