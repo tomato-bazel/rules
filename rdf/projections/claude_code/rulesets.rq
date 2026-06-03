@@ -1,0 +1,33 @@
+# Claude Code ruleset projection.
+#
+# Each authored aide:Ruleset becomes one aide:OutputFile describing the
+# repo-root CLAUDE.md (markdown + YAML frontmatter, full body). Claude
+# Code reads a single project-scoped CLAUDE.md at the repo root, so the
+# path policy is fixed — the per-IDE path lives entirely in the BIND
+# below. The output is the generic "filespec" the Rust serializer
+# consumes; it never sees "a ruleset".
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    ?out a aide:OutputFile ;
+        aide:targetPath ?path ;
+        aide:fileFormat aide:MarkdownYaml ;
+        aide:forIde aide:ClaudeCode ;
+        aide:fromDef ?ruleset ;
+        aide:bodyPath ?body ;
+        aide:frontmatter ?fm .
+    ?fm aide:key ?fk ; aide:value ?fv ; aide:order ?fo .
+}
+WHERE {
+    ?ruleset a aide:Ruleset ;
+        aide:defName ?name .
+    OPTIONAL { ?ruleset aide:bodyPath ?body }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/claude/ruleset/", ?name)) AS ?out)
+    BIND("CLAUDE.md" AS ?path)
+    OPTIONAL {
+        ?ruleset aide:frontmatter ?fm .
+        ?fm aide:key ?fk ;
+            aide:value ?fv .
+        OPTIONAL { ?fm aide:order ?fo }
+    }
+}

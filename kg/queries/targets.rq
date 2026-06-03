@@ -1,0 +1,6 @@
+PREFIX bzl: <https://fastverk.dev/ontology/bazel#>
+SELECT ?label ?kind (COUNT(?dep) AS ?deps)
+WHERE {
+  ?t a bzl:Target ; bzl:label ?label ; bzl:kind ?kind .
+  OPTIONAL { ?t bzl:dep ?dep }
+} GROUP BY ?label ?kind ORDER BY ?label

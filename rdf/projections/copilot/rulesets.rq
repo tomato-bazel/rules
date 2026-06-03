@@ -1,0 +1,33 @@
+# Copilot ruleset projection — the full-body repository-instructions doc.
+#
+# Each authored aide:Ruleset becomes one aide:OutputFile describing
+# .github/copilot-instructions.md (markdown + YAML frontmatter, full
+# body). Unlike the Copilot *skill* shim (link, don't duplicate), the
+# repository-instructions file is a single repo-scoped document Copilot
+# reads directly, so the canonical body is materialized in full. The
+# per-IDE path policy lives entirely in the BIND below.
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    ?out a aide:OutputFile ;
+        aide:targetPath ?path ;
+        aide:fileFormat aide:MarkdownYaml ;
+        aide:forIde aide:Copilot ;
+        aide:fromDef ?ruleset ;
+        aide:bodyPath ?body ;
+        aide:frontmatter ?fm .
+    ?fm aide:key ?fk ; aide:value ?fv ; aide:order ?fo .
+}
+WHERE {
+    ?ruleset a aide:Ruleset ;
+        aide:defName ?name .
+    OPTIONAL { ?ruleset aide:bodyPath ?body }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/copilot/ruleset/", ?name)) AS ?out)
+    BIND(".github/copilot-instructions.md" AS ?path)
+    OPTIONAL {
+        ?ruleset aide:frontmatter ?fm .
+        ?fm aide:key ?fk ;
+            aide:value ?fv .
+        OPTIONAL { ?fm aide:order ?fo }
+    }
+}

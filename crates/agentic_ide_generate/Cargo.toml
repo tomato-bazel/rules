@@ -1,0 +1,14 @@
+[package]
+name = "agentic_ide_generate"
+version = "0.0.1"
+edition = "2021"
+description = "Public projection CLI: an aide:OutputFile N-Triples filespec → per-IDE agent-config files. Depends only on agentic_ide_projection."
+
+[[bin]]
+name = "agentic-ide-generate"
+path = "src/main.rs"
+
+[dependencies]
+agentic_ide_projection = { path = "../agentic_ide_projection" }
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }

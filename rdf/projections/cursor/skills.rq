@@ -1,0 +1,29 @@
+# Cursor skill projection — a full-body .mdc rule. Same canonical
+# source as the Claude and Copilot projections; only the path policy
+# (.cursor/rules/<name>.mdc) and format differ. The description becomes
+# the rule's frontmatter; the body is the canonical SKILL.md content.
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    ?out a aide:OutputFile ;
+        aide:targetPath ?path ;
+        aide:fileFormat aide:Mdc ;
+        aide:forIde aide:Cursor ;
+        aide:fromDef ?skill ;
+        aide:bodyPath ?body ;
+        aide:frontmatter ?fm .
+    ?fm aide:key ?fk ; aide:value ?fv ; aide:order ?fo .
+}
+WHERE {
+    ?skill a aide:Skill ;
+        aide:defName ?name .
+    OPTIONAL { ?skill aide:bodyPath ?body }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/cursor/skill/", ?name)) AS ?out)
+    BIND(CONCAT(".cursor/rules/", ?name, ".mdc") AS ?path)
+    OPTIONAL {
+        ?skill aide:frontmatter ?fm .
+        ?fm aide:key ?fk ;
+            aide:value ?fv .
+        OPTIONAL { ?fm aide:order ?fo }
+    }
+}

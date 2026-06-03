@@ -1,0 +1,7 @@
+# Root package. The user-facing target is the public generate CLI:
+#   bazel run //:generate -- --filespec <filespec.nt> --out <repo>
+alias(
+    name = "generate",
+    actual = "//crates/agentic_ide_generate:agentic-ide-generate",
+    visibility = ["//visibility:public"],
+)

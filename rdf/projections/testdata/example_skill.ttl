@@ -1,0 +1,12 @@
+@prefix aide: <https://fastverk.dev/ontology/agentic_ide/projection#> .
+
+# A single authored skill definition — the kind of triple that, in a
+# consumer repo, lives in .agents/graph/skills.ttl. The per-IDE
+# projection queries reshape it into IDE-specific output files.
+<https://example.org/skill/debugging>
+    a aide:Skill ;
+    aide:defName "debugging" ;
+    aide:description "Systematic root-cause analysis." ;
+    aide:bodyPath ".agents/skills/debugging/SKILL.md" ;
+    aide:frontmatter [ aide:key "name" ;        aide:value "debugging" ;                    aide:order 0 ] ;
+    aide:frontmatter [ aide:key "description" ; aide:value "Systematic root-cause analysis." ; aide:order 1 ] .

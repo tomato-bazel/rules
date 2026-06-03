@@ -1,0 +1,41 @@
+load(":defs.bzl", "agentic_kg", "kg_node")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["defs.bzl", "aspect.bzl", "providers.bzl"])
+
+# A tiny dependency DAG to demonstrate the cached KG aspect + rollup:
+#   a → {b → d, c}
+kg_node(name = "d", srcs = ["node_d.txt"])
+kg_node(name = "b", deps = [":d"])
+kg_node(name = "c", srcs = ["node_c.txt"])
+kg_node(name = "a", deps = [":b", ":c"])
+
+# Roll the whole closure reachable from :a into one queryable KG.
+agentic_kg(name = "demo_kg", roots = [":a"])
+
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+
+# Prove the rolled-up, Bazel-cached KG is directly queryable: SELECT
+# every target + its kind + dep count straight from the aspect output.
+sparql_query(
+    name = "targets_q",
+    dataset = ":demo_kg",
+    query = "queries/targets.rq",
+    out_format = "tsv",
+)
+
+# Unified KG: roll up an authored definition target. The aspect emits its
+# structural bzl: facts AND folds its authored aide: TTL into one graph —
+# the KG-as-a-service substrate the (private) MCP gateway queries.
+agentic_kg(
+    name = "unified_kg",
+    roots = ["//rdf/projections:debugging_def"],
+)
+
+sparql_query(
+    name = "unified_q",
+    dataset = ":unified_kg",
+    query = "queries/unified.rq",
+    out_format = "tsv",
+)

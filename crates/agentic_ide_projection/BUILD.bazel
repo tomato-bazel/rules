@@ -1,0 +1,26 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# The PUBLIC projection serializer: parses an aide:OutputFile N-Triples
+# filespec (the output of the per-IDE projection CONSTRUCT queries) and
+# materializes the per-IDE config files. Depends ONLY on anyhow +
+# serde_json — no klad, consolidator, protos, or tonic — so it carves
+# cleanly into the public rules_agentic_ide repo. This is the keystone
+# of the public/private split: the projection logic stands alone.
+rust_library(
+    name = "agentic_ide_projection",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    crate_name = "agentic_ide_projection",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "agentic_ide_projection_test",
+    crate = ":agentic_ide_projection",
+    edition = "2021",
+)
