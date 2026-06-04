@@ -4,6 +4,17 @@ All notable changes to `rules_agentic_ide`. Ontology changes follow the
 versioning convention in [docs/upgrading.md](docs/upgrading.md): additive =
 minor; deprecate-then-remove (with a migration) = major.
 
+## 0.0.3
+
+Additive — no migration needed.
+
+### Fixed
+- **`aide:BazelTarget` MCP flavor now projects `env`.** A bazel-run MCP
+  server with `aide:envVar` entries previously dropped them from
+  `.mcp.json` (only `Network`/`Binary` rendered `env`). Hermetic
+  launchers that need environment (e.g. `AWS_REGION`/`AWS_PROFILE`) now
+  carry it through.
+
 ## 0.0.2
 
 Additive — no migration needed; a 0.0.1 graph still validates and projects.

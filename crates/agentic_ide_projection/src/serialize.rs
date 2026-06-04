@@ -148,6 +148,9 @@ fn mcp_server_json(s: &McpServerSpec) -> serde_json::Value {
                 args.extend(s.args.iter().map(|(_, a)| Value::String(a.clone())));
             }
             obj.insert("args".into(), Value::Array(args));
+            if !s.env.is_empty() {
+                obj.insert("env".into(), kv_object(&s.env));
+            }
         }
         McpFlavor::Other(iri) => {
             obj.insert("_unknownFlavor".into(), Value::String(iri.clone()));
