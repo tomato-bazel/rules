@@ -1,0 +1,12 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["extensions.bzl"])
+
+bzl_library(
+    name = "extensions_bzl",
+    srcs = ["extensions.bzl"],
+    visibility = ["//docs:__pkg__"],
+    deps = ["//providers/vfkit/private:known_versions_bzl"],
+)
