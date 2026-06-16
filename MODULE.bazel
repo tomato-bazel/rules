@@ -3,11 +3,16 @@
 # implementations live in sibling repos like rules_jena.
 module(
     name = "rules_rdf",
-    version = "0.3.0",
+    version = "0.4.0",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
+
+# Hosts the canonical RDF statement substrate proto (//rdf:statement_proto,
+# graph_ir's L1). Schema-only — consumers generate their own language
+# bindings, so this is the proto_library toolchain dep, nothing heavier.
+bazel_dep(name = "protobuf", version = "33.4")
 
 # rules_python is a non-dev dep because consumers of the
 # `rdf_plugin_contract_test` rule transitively need it — the

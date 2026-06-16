@@ -1,7 +1,18 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_python//python:defs.bzl", "py_binary")
 
 package(default_visibility = ["//visibility:public"])
+
+# The canonical RDF statement substrate (graph_ir's L1) — Jena-protobuf-shaped
+# Term / Triple / Quad / Literal / PrefixDecl / RdfStatement. Schema-only: a
+# `proto_library` that consumers wrap in their own java_proto_library / etc.
+# A stream of RdfStatement converts mechanically into a Jena Model and
+# round-trips through the `rdfprotobuf` serialization rules_rdf already speaks.
+proto_library(
+    name = "statement_proto",
+    srcs = ["statement.proto"],
+)
 
 # Namespace/import extractor used by the rdf_namespace_aspect. Stdlib
 # only; consumers register their own python toolchain (same posture as

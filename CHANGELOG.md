@@ -4,6 +4,21 @@ All notable changes to rules_rdf. The format is loosely
 [Keep a Changelog](https://keepachangelog.com/) — version headers
 mirror the published bazel-registry entries.
 
+## 0.4.0 — canonical RDF statement substrate proto
+
+- **`//rdf:statement_proto`** (`fastverk.rdf.v1`, `dev.fastverk.rdf.v1`):
+  the canonical RDF statement substrate — `Term` (IRI / literal / bnode),
+  `Triple` / `Quad`, `Literal` (lexical + language/datatype), `PrefixDecl`,
+  and `RdfStatement` (the stream unit). The message shapes mirror Apache
+  Jena's RDF Protobuf wire format, so a stream converts mechanically into a
+  Jena `Model` / `Dataset` and round-trips through the `rdfprotobuf`
+  serialization rules_rdf already speaks. This is the L1 wire format every
+  graph reduces to, keyed on stable IRIs; domain vocabularies + SHACL shapes
+  layer on top. **Schema-only** — consumers generate their own bindings
+  (`java_proto_library`, …), so the only new dependency is `protobuf` (for
+  `proto_library`). Provenance is carried out of band by the domain (e.g. as
+  the key in `KV<Context, RdfStatement>`), keeping the substrate neutral.
+
 ## 0.3.0 — hermetic RDF-resource fetch + linked-graph closure
 
 - **`rdf_resource_repository`** repository rule + **`rdf`** bzlmod module

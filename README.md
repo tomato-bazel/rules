@@ -7,6 +7,12 @@ conversion, and reasoning — and leaves the engine choice to a
 concrete toolchain registered by the consumer. The host repo only
 registers toolchains; the rules themselves are engine-agnostic.
 
+rules_rdf also hosts the **canonical RDF statement substrate** —
+`//rdf:statement_proto` (`fastverk.rdf.v1`): Jena-protobuf-shaped
+`Term` / `Triple` / `Quad` / `Literal` / `PrefixDecl` / `RdfStatement`, the
+L1 wire format graph data reduces to (keyed on stable IRIs). Schema-only;
+consumers generate their own language bindings.
+
 ## Status: v0.2.0
 
 What v0.2 adds on top of v0.1.0:
