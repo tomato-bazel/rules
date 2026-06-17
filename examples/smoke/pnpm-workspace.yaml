@@ -1,0 +1,5 @@
+packages: []
+
+# aspect_rules_js requires the set of packages allowed to run lifecycle
+# (postinstall) scripts to be enumerated. The eslint closure needs none.
+onlyBuiltDependencies: []
