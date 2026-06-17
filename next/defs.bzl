@@ -100,6 +100,12 @@ def _next_build_impl(ctx):
         "BAZEL_BINDIR": ctx.bin_dir.path,
     }
 
+    # Scope the V8 heap ceiling to THIS action (not a global
+    # --action_env=NODE_OPTIONS, which would rewrite every action's cache key).
+    # Next's webpack build OOMs at Node's ~2GB default heap on large apps.
+    if ctx.attr.node_options:
+        env["NODE_OPTIONS"] = ctx.attr.node_options
+
     args = ctx.actions.args()
     args.add(ctx.executable.next_bin.path)
     args.add(app_dir_arg)
@@ -311,6 +317,14 @@ next_build = rule(
         "app_dir": attr.string(
             doc = "Package-relative app root. Defaults to the package " +
                   "containing the rule.",
+        ),
+        "node_options": attr.string(
+            default = "--max-old-space-size=4096",
+            doc = "Passed as NODE_OPTIONS to the `next build` node process. " +
+                  "Defaults to a 4GB V8 heap — Next's webpack build OOMs at " +
+                  "Node's ~2GB default on large apps. Scoped to this action so " +
+                  "it doesn't churn the global action-cache key. Set to a larger " +
+                  "ceiling on roomier runners, or \"\" to use Node's default.",
         ),
         "bundler": attr.string(
             default = "webpack",
