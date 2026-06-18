@@ -1,0 +1,55 @@
+# Cursor MCP projection.
+#
+# Same shape as claude_code/mcp.rq — every authored aide:McpServer attaches
+# (via aide:mcpEntry) to ONE aide:OutputFile — but targeted at Cursor's
+# `.cursor/mcp.json`. Cursor consumes the identical `{"mcpServers": {...}}`
+# JSON (aide:jsonShape aide:McpConfig), so the serializer's McpConfig path
+# renders it unchanged; only the targetPath / forIde / entry namespace differ
+# from the Claude projection. Adding an IDE = adding a query, never editing a
+# switch. env/header values (e.g. "${LINEAR_TOKEN}") pass through verbatim.
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    aide:out_cursor_mcp a aide:OutputFile ;
+        aide:targetPath ".cursor/mcp.json" ;
+        aide:fileFormat aide:Json ;
+        aide:jsonShape aide:McpConfig ;
+        aide:forIde aide:Cursor ;
+        aide:mcpEntry ?entry .
+    ?entry aide:serverName ?name ;
+        aide:fromDef ?server ;
+        aide:mcpFlavor ?flavor ;
+        aide:transport ?transport ;
+        aide:command ?command ;
+        aide:url ?url ;
+        aide:bazelLabel ?label ;
+        aide:arg ?arg ;
+        aide:envVar ?env ;
+        aide:header ?header .
+    ?arg aide:value ?argv ; aide:order ?argo .
+    ?env aide:key ?envk ; aide:value ?envv .
+    ?header aide:key ?hk ; aide:value ?hv .
+}
+WHERE {
+    ?server a aide:McpServer ;
+        aide:defName ?name .
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#entry/cursor/mcp/", ?name)) AS ?entry)
+    OPTIONAL { ?server aide:mcpFlavor ?flavor }
+    OPTIONAL { ?server aide:transport ?transport }
+    OPTIONAL { ?server aide:command ?command }
+    OPTIONAL { ?server aide:url ?url }
+    OPTIONAL { ?server aide:bazelLabel ?label }
+    OPTIONAL {
+        ?server aide:arg ?arg .
+        ?arg aide:value ?argv .
+        OPTIONAL { ?arg aide:order ?argo }
+    }
+    OPTIONAL {
+        ?server aide:envVar ?env .
+        ?env aide:key ?envk ; aide:value ?envv .
+    }
+    OPTIONAL {
+        ?server aide:header ?header .
+        ?header aide:key ?hk ; aide:value ?hv .
+    }
+}

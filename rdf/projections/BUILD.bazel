@@ -144,6 +144,17 @@ sparql_query(
     out_format = "ntriples",
 )
 
+# The SAME canonical MCP graph projected to Cursor's .cursor/mcp.json. Proves
+# the normalization thesis for MCP too: one authoritative server set, N IDE
+# views. Cursor consumes the identical McpConfig JSON shape — only the
+# targetPath / forIde / entry namespace differ from the Claude projection.
+sparql_query(
+    name = "cursor_mcp_nt",
+    dataset = ":example_mcp_canonical",
+    query = "cursor/mcp.rq",
+    out_format = "ntriples",
+)
+
 # Full round-trip: ONE canonical graph (skill + ruleset + MCP) projected
 # across every surface and IDE into a single filespec.
 rdf_dataset(
@@ -167,6 +178,7 @@ agent_bundle(
         "copilot/rulesets.rq",
         "cursor/rulesets.rq",
         "claude_code/mcp.rq",
+        "cursor/mcp.rq",
     ],
 )
 
@@ -196,5 +208,6 @@ agent_bundle(
         "copilot/rulesets.rq",
         "cursor/rulesets.rq",
         "claude_code/mcp.rq",
+        "cursor/mcp.rq",
     ],
 )

@@ -4,6 +4,18 @@ All notable changes to `rules_agentic_ide`. Ontology changes follow the
 versioning convention in [docs/upgrading.md](docs/upgrading.md): additive =
 minor; deprecate-then-remove (with a migration) = major.
 
+## 0.0.4
+
+Additive — no migration needed.
+
+### Added
+- **Cursor MCP projection** (`cursor/mcp.rq`). Projects every authored
+  `aide:McpServer` to Cursor's `.cursor/mcp.json` (the same `McpConfig` JSON
+  shape Cursor and Claude Code share), so a single `agent_bundle` can emit
+  `.mcp.json` + `.cursor/mcp.json` from one server set. Closes the gap where
+  Cursor had `rulesets.rq` / `skills.rq` projections but no MCP one. Wired into
+  the `all_surfaces` + `from_rules` example bundles and a `cursor_mcp_nt` target.
+
 ## 0.0.3
 
 Additive — no migration needed.
