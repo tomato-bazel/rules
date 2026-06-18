@@ -1,0 +1,31 @@
+load("//markdown:defs.bzl", "markdown_document", "markdown_fragment")
+
+# Two composable sections. `usage` deep-links into `intro` via mdref:intro.
+markdown_fragment(
+    name = "intro",
+    src = "intro.md",
+    title = "Introduction",
+    weight = 0,
+)
+
+markdown_fragment(
+    name = "usage",
+    src = "usage.md",
+    title = "Usage",
+    weight = 10,
+)
+
+# Aggregate into GUIDE.md with a TOC + a prose template; resolve + check the
+# deep link; materialize into the tree (GUIDE.md) with a drift gate.
+markdown_document(
+    name = "guide",
+    out = "GUIDE.md",
+    template = "README.md.tmpl",
+    fragments = [
+        ":intro",
+        ":usage",
+    ],
+    link_check = True,
+    toc = True,
+    write_to = "GUIDE.md",
+)
