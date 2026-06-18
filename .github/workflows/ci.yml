@@ -16,11 +16,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      # rules_readme depends on the sibling rules_markdown checkout (pre-registry).
-      - uses: actions/checkout@v4
-        with:
-          repository: fastverk/rules_markdown
-          path: ../rules_markdown
+      # rules_markdown resolves from the fastverk registry (see .bazelrc).
       - uses: bazel-contrib/setup-bazel@0.10.0
         with:
           bazelisk-cache: true
