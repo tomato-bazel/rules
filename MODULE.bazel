@@ -1,0 +1,21 @@
+module(
+    name = "rules_readme",
+    version = "0.0.1",
+)
+
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+bazel_dep(name = "rules_markdown", version = "0.0.1")
+
+# Pre-registry local dev: resolve rules_markdown from the sibling fastverk
+# checkout. Drop once rules_markdown 0.0.1 is on the registry. (local_path_override
+# only applies when rules_readme is the ROOT module — it is ignored when
+# rules_readme is consumed as a dependency, so this is safe to commit.)
+local_path_override(
+    module_name = "rules_markdown",
+    path = "../rules_markdown",
+)
+
+bazel_dep(name = "rules_shell", version = "0.6.1", dev_dependency = True)
+bazel_dep(name = "stardoc", version = "0.7.2", dev_dependency = True)
