@@ -1,6 +1,6 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//:next/package_json.bzl", next_bin = "bin")
-load("@rules_nextjs//next:defs.bzl", "next_build")
+load("@rules_nextjs//next:defs.bzl", "next_build", "next_standalone")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -25,5 +25,14 @@ next_build(
         ":node_modules/react-dom",
         ":node_modules/typescript",
     ],
+    next_bin = ":next_cli",
+    output = "standalone",
+)
+
+# `bazel build //:standalone.bundle` → deployable run tree (pkg_tar/oci input).
+# `bazel run   //:standalone`        → serve it locally on $PORT (default 3000).
+next_standalone(
+    name = "standalone",
+    build = ":build",
     next_bin = ":next_cli",
 )

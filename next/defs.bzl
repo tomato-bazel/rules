@@ -64,8 +64,35 @@ NextBuildInfo = provider(
     doc = "A `next build` output tree.",
     fields = {
         "tree": "Directory: the .next output (standalone + static).",
+        "output": "Build output mode this tree was produced with " +
+                  "(`standalone` / `static` / `vercel` / `default`). Only " +
+                  "`standalone` trees carry a self-contained `server.js` that " +
+                  "`next_standalone` can turn into a runnable binary + OCI bundle.",
+        "app_dir": "Package-relative app root the build ran from (`\"\"` when " +
+                   "the app is the repo root). Consumers use it to locate the " +
+                   "nested `standalone/<app_dir>/server.js` entry.",
     },
 )
+
+NextStandaloneInfo = provider(
+    doc = "A deployable Next.js `output: 'standalone'` bundle: the standalone " +
+          "server tree at the bundle root with `.next/static` re-stitched " +
+          "alongside it, ready for `pkg_tar`/`oci_image` or `bazel run`.",
+    fields = {
+        "bundle": "Directory: the assembled run tree. `pkg_tar(srcs=" +
+                  "[<target>.bundle], package_dir=\"/app\")` lands it at `/app`.",
+        "entry": "Bundle-root-relative path of the deterministic entry shim " +
+                 "(see `NEXT_STANDALONE_ENTRY`). Use as the `oci_image` `cmd` " +
+                 "(e.g. `cmd = [\"" + "__next_standalone_server.cjs" + "\"]`).",
+        "app_dir": "Package-relative app root the build ran from (informational; " +
+                   "the real `server.js` nesting is discovered by the entry shim).",
+    },
+)
+
+# Fixed bundle-root filename of the standalone entry shim. Next nests the real
+# `server.js` unpredictably (per `outputFileTracingRoot`), so the shim — at this
+# constant path — is what an `oci_image` `cmd` / launcher targets.
+NEXT_STANDALONE_ENTRY = "__next_standalone_server.cjs"
 
 _COPY_TO_DIRECTORY_TOOLCHAIN = "@aspect_bazel_lib//lib:copy_to_directory_toolchain_type"
 
@@ -93,12 +120,21 @@ def _next_build_impl(ctx):
 
     env = {
         "NEXT_TELEMETRY_DISABLED": "1",
-        "NEXT_PRIVATE_STANDALONE": "1",
         "NODE_ENV": "production",
         # next.config.mjs may want this to resolve Bazel-managed paths
         # (e.g. for outputFileTracingRoot) — surface it explicitly.
         "BAZEL_BINDIR": ctx.bin_dir.path,
     }
+
+    # Force the standalone tracer only for `output = "standalone"`. Static
+    # (`output: 'export'`) and vercel/default builds emit no self-contained
+    # server, so forcing it would be a lie — and only standalone trees get a
+    # runnable `next_standalone`. `NEXT_PRIVATE_STANDALONE=1` also makes the
+    # build self-contained even if the app's next.config omits
+    # `output: 'standalone'`, which is the behavior every existing consumer
+    # depends on, so it stays the default.
+    if ctx.attr.output == "standalone":
+        env["NEXT_PRIVATE_STANDALONE"] = "1"
 
     # Scope the V8 heap ceiling to THIS action (not a global
     # --action_env=NODE_OPTIONS, which would rewrite every action's cache key).
@@ -285,6 +321,54 @@ cd "$APP_RUN_DIR"
 # a relative-symlinked node_modules into its standalone output, and
 # the target lies outside the declared output tree).
 cp -RL "${APP_RUN_DIR}/.next/." "$OUT_DIR/"
+
+# Repair the standalone node_modules for runtime resolution.
+#
+# The `cp -RL` above deref's the standalone's `node_modules` into real
+# directories — which DISCONNECTS each package from its sibling deps under
+# `node_modules/.aspect_rules_js/<key>/node_modules/` (the pnpm/aspect_rules_js
+# layout resolves transitive deps through symlinks). The classic symptom:
+# `next`'s require-hook does `require('styled-jsx')` and can't find it, so the
+# standalone server crashes on boot with `Cannot find module 'styled-jsx'`.
+#
+# Fix: give every content-store package a top-level entry in the standalone's
+# `node_modules` (skip names already present — Next's traced direct deps). Node
+# resolution walks the *realpath* ancestors of each module up to this single
+# top-level `node_modules`, so a flat layout here makes every transitive dep
+# resolvable. Symlinks (relative, internal to the output tree, targets present)
+# keep it ~free and Bazel-output-validator-clean.
+for SA_STANDALONE in "$OUT_DIR"/standalone; do
+    [ -d "$SA_STANDALONE" ] || continue
+    SA_SERVER="$(find "$SA_STANDALONE" -name server.js -not -path '*/node_modules/*' 2>/dev/null | head -n1 || true)"
+    [ -n "$SA_SERVER" ] || continue
+    SA_NM="$(dirname "$SA_SERVER")/node_modules"
+    SA_STORE="$SA_NM/.aspect_rules_js"
+    [ -d "$SA_STORE" ] || continue
+    for KEYDIR in "$SA_STORE"/*/node_modules; do
+        [ -d "$KEYDIR" ] || continue
+        KEY="$(basename "$(dirname "$KEYDIR")")"
+        for ENTRY in "$KEYDIR"/*; do
+            [ -e "$ENTRY" ] || continue
+            BASE="$(basename "$ENTRY")"
+            case "$BASE" in
+                .*) continue ;;
+                @*)
+                    for SCOPED in "$ENTRY"/*; do
+                        [ -e "$SCOPED" ] || continue
+                        NAME="$BASE/$(basename "$SCOPED")"
+                        [ -e "$SA_NM/$NAME" ] && continue
+                        mkdir -p "$SA_NM/$BASE"
+                        ln -s "../.aspect_rules_js/$KEY/node_modules/$NAME" "$SA_NM/$NAME"
+                    done
+                    ;;
+                *)
+                    [ -e "$SA_NM/$BASE" ] && continue
+                    ln -s ".aspect_rules_js/$KEY/node_modules/$BASE" "$SA_NM/$BASE"
+                    ;;
+            esac
+        done
+    done
+done
 """,
         arguments = [args],
         env = env,
@@ -294,7 +378,11 @@ cp -RL "${APP_RUN_DIR}/.next/." "$OUT_DIR/"
 
     return [
         DefaultInfo(files = depset([out_dir])),
-        NextBuildInfo(tree = out_dir),
+        NextBuildInfo(
+            tree = out_dir,
+            output = ctx.attr.output,
+            app_dir = app_dir,
+        ),
     ]
 
 next_build = rule(
@@ -317,6 +405,18 @@ next_build = rule(
         "app_dir": attr.string(
             doc = "Package-relative app root. Defaults to the package " +
                   "containing the rule.",
+        ),
+        "output": attr.string(
+            default = "standalone",
+            values = ["standalone", "static", "vercel", "default"],
+            doc = "The Next.js build output mode, surfaced on `NextBuildInfo` " +
+                  "and used to gate downstream rules. `standalone` (default) " +
+                  "forces `NEXT_PRIVATE_STANDALONE=1` so the build emits a " +
+                  "self-contained `.next/standalone` server tree — the only " +
+                  "mode `next_standalone` (runnable binary + OCI bundle) " +
+                  "accepts. `static` (`output: 'export'`), `vercel`, and " +
+                  "`default` skip that env and produce no runnable server; set " +
+                  "the matching `output:` in your `next.config` for those.",
         ),
         "node_options": attr.string(
             default = "--max-old-space-size=4096",
@@ -459,3 +559,200 @@ next_dev = rule(
     doc = "`bazel run`-launched Next.js dev server. Runs `next dev` " +
           "in the workspace tree against pnpm-managed node_modules.",
 )
+
+# ─── next_standalone — deployable bundle + runnable server ────────────────────
+#
+# `next build` with `output: 'standalone'` emits `.next/standalone` (a
+# self-contained server tree with traced `node_modules`) and `.next/static`
+# (the hashed client assets) as SIBLINGS. Neither is runnable on its own: the
+# standalone server resolves `/_next/static/*` from `<cwd>/.next/static`, so the
+# static dir has to be re-stitched next to the standalone root before `node
+# <app>/server.js` works. This is exactly the COPY layout the hand-written
+# `Dockerfile.runtime` performs; `_next_standalone_bundle` reproduces it as one
+# Bazel TreeArtifact so a single `pkg_tar(... package_dir="/app")` (or `bazel
+# run`) gets a working app with no per-consumer shell.
+
+def _next_standalone_bundle_impl(ctx):
+    info = ctx.attr.build[NextBuildInfo]
+    if info.output != "standalone":
+        fail((
+            "next_standalone: build target {} has output = '{}', but a runnable " +
+            "bundle needs output = 'standalone'. Static/vercel builds emit no " +
+            "self-contained server."
+        ).format(ctx.attr.build.label, info.output))
+
+    bundle = ctx.actions.declare_directory(ctx.label.name)
+    args = ctx.actions.args()
+    args.add(info.tree.path)
+    args.add(bundle.path)
+    args.add(ctx.file._entry.path)
+    args.add(NEXT_STANDALONE_ENTRY)
+
+    ctx.actions.run_shell(
+        outputs = [bundle],
+        inputs = depset([info.tree, ctx.file._entry]),
+        arguments = [args],
+        command = """
+set -euo pipefail
+TREE="$1"
+BUNDLE="$2"
+ENTRY_SRC="$3"
+ENTRY_NAME="$4"
+if [ ! -d "$TREE/standalone" ]; then
+    echo "next_standalone: $TREE/standalone missing — was the build run with output='standalone'?" >&2
+    exit 1
+fi
+mkdir -p "$BUNDLE"
+# Standalone server tree (incl. traced node_modules + nested <app>/server.js)
+# lands at the bundle root. `-R` (NOT `-RL`): `next_build` already deref'd Next's
+# external content-store symlinks, and the only symlinks left are the flat
+# top-level `node_modules/<pkg>` links it adds — relative + internal to the
+# tree. Preserving them avoids deref'ing every package into a second top-level
+# copy (which would ~double the image's node_modules).
+cp -R "$TREE/standalone/." "$BUNDLE/"
+# Re-stitch the hashed client assets at `<root>/.next/static`, where the
+# standalone server serves `/_next/static/*` from (cwd-relative).
+if [ -d "$TREE/static" ]; then
+    mkdir -p "$BUNDLE/.next"
+    cp -RL "$TREE/static" "$BUNDLE/.next/static"
+fi
+# Drop the deterministic entry shim at a fixed bundle-root path so an oci_image
+# `cmd` / launcher can target it regardless of where Next nested `server.js`.
+cp "$ENTRY_SRC" "$BUNDLE/$ENTRY_NAME"
+""",
+        mnemonic = "NextStandaloneBundle",
+        progress_message = "Assembling Next.js standalone bundle %s" % ctx.label,
+    )
+
+    return [
+        DefaultInfo(files = depset([bundle])),
+        NextStandaloneInfo(
+            bundle = bundle,
+            app_dir = info.app_dir,
+            entry = NEXT_STANDALONE_ENTRY,
+        ),
+    ]
+
+_next_standalone_bundle = rule(
+    implementation = _next_standalone_bundle_impl,
+    attrs = {
+        "build": attr.label(
+            mandatory = True,
+            providers = [NextBuildInfo],
+            doc = "A `next_build` target built with `output = \"standalone\"`.",
+        ),
+        "_entry": attr.label(
+            default = "//next/private:standalone_entry.cjs",
+            allow_single_file = True,
+            doc = "The standalone entry shim copied into the bundle root as " +
+                  "`" + NEXT_STANDALONE_ENTRY + "`.",
+        ),
+    },
+    doc = "Assemble a `next_build` standalone output into one deployable run " +
+          "tree (standalone server at the root, `.next/static` re-stitched " +
+          "alongside, plus a fixed-name entry shim). Consume via " +
+          "`pkg_tar`/`oci_image` or `next_standalone`'s runnable.",
+)
+
+def _next_standalone_run_impl(ctx):
+    bundle = ctx.attr.bundle[NextStandaloneInfo].bundle
+    bundle_rlocation = ctx.workspace_name + "/" + bundle.short_path
+
+    launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
+    ctx.actions.write(
+        output = launcher,
+        is_executable = True,
+        content = """#!/usr/bin/env bash
+# `bazel run`-launched Next.js standalone server.
+#
+# Runs the assembled standalone bundle exactly as the production image does:
+# `cd` to the bundle root (so `/_next/static/*` resolves to `.next/static`) and
+# exec the hermetic Node on the nested `server.js`. PORT / HOSTNAME pass through
+# the environment (the standalone server reads them); extra argv is forwarded.
+set -euo pipefail
+
+RUNFILES="${{RUNFILES_DIR:-$0.runfiles}}"
+
+NODE_BIN=""
+for candidate in \\
+    "$RUNFILES"/rules_nodejs+*/bin/nodejs/bin/node \\
+    "$RUNFILES"/rules_nodejs*/bin/nodejs/bin/node; do
+    [ -x "$candidate" ] && NODE_BIN="$candidate" && break
+done
+if [ -z "$NODE_BIN" ]; then
+    echo "next_standalone: no hermetic node in runfiles; falling back to PATH" >&2
+    NODE_BIN="$(command -v node)"
+fi
+
+BUNDLE="$RUNFILES/{bundle_rlocation}"
+if [ ! -d "$BUNDLE" ]; then
+    echo "next_standalone: bundle not found at $BUNDLE" >&2
+    exit 1
+fi
+cd "$BUNDLE"
+
+# Run the deterministic entry shim (it discovers the real, unpredictably-nested
+# server.js and runs it with cwd here, so /_next/static resolves to .next/static).
+exec "$NODE_BIN" "{entry}" "$@"
+""".format(bundle_rlocation = bundle_rlocation, entry = NEXT_STANDALONE_ENTRY),
+    )
+
+    runfiles = ctx.runfiles(files = [launcher, bundle]).merge(
+        ctx.attr.next_bin[DefaultInfo].default_runfiles,
+    )
+
+    return [DefaultInfo(executable = launcher, runfiles = runfiles)]
+
+_next_standalone_run = rule(
+    implementation = _next_standalone_run_impl,
+    attrs = {
+        "bundle": attr.label(
+            mandatory = True,
+            providers = [NextStandaloneInfo],
+            doc = "The `_next_standalone_bundle` target to run.",
+        ),
+        "next_bin": attr.label(
+            executable = True,
+            cfg = "target",
+            mandatory = True,
+            doc = "`js_binary` Next CLI target — used only to borrow its " +
+                  "runfiles' hermetic Node toolchain to run the server.",
+        ),
+    },
+    executable = True,
+    doc = "`bazel run`-launched Next.js standalone server over a " +
+          "`_next_standalone_bundle`.",
+)
+
+def next_standalone(name, build, next_bin, visibility = None, tags = None):
+    """Deployable bundle + runnable server for a standalone `next_build`.
+
+    Emits two targets:
+      * `<name>.bundle` — the assembled run tree (TreeArtifact). Feed it to
+        `pkg_tar(srcs = [":<name>.bundle"], package_dir = "/app")` for an
+        `oci_image`, or any consumer that wants a ready-to-serve Next.js tree.
+      * `<name>` — a `bazel run`-able launcher that serves the bundle with the
+        hermetic Node (honors `PORT` / `HOSTNAME`).
+
+    Fails at analysis if `build` was not produced with `output = "standalone"`.
+
+    Args:
+      name: target name; the runnable. The bundle is `<name>.bundle`.
+      build: a `next_build` target (must be `output = "standalone"`).
+      next_bin: the `js_binary` Next CLI target (borrowed for hermetic Node).
+      visibility: standard Bazel visibility, applied to both targets.
+      tags: standard Bazel tags, applied to both targets.
+    """
+    _next_standalone_bundle(
+        name = name + ".bundle",
+        build = build,
+        visibility = visibility,
+        tags = tags,
+    )
+    _next_standalone_run(
+        name = name,
+        bundle = ":" + name + ".bundle",
+        next_bin = next_bin,
+        visibility = visibility,
+        tags = tags,
+    )

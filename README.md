@@ -5,6 +5,7 @@ hermetic Bazel action with the workspace's deps as explicit inputs and
 the `.next/` tree as the declared output.
 
 - **rule**: `next_build` — see [docs/defs.md](docs/defs.md).
+- **rule/macro**: `next_standalone` — turn an `output = "standalone"` build into a `bazel run`-able server **and** a deployable bundle for `pkg_tar`/`oci_image`.
 - **provider**: `NextBuildInfo` — wraps the `.next` output tree so future rules (deploy targets, `oci_image` wrappers, doc-site extractors) can consume builds programmatically.
 
 ## Install
@@ -58,6 +59,61 @@ next_build(
 
 `bazel build //:build` produces `bazel-bin/build.out/` containing the full
 `.next/` tree (`standalone/`, `static/`, trace files).
+
+## Standalone: runnable server + deployable bundle
+
+`next build`'s `output: 'standalone'` emits the self-contained server
+(`.next/standalone`) and the hashed client assets (`.next/static`) as
+*siblings* — neither runs on its own. `next_standalone` re-stitches them
+into one tree (matching the hand-written `Dockerfile` COPY layout) and
+exposes it two ways:
+
+```python
+load("@rules_nextjs//next:defs.bzl", "next_build", "next_standalone")
+
+next_build(
+    name = "build",
+    # ... as above ...
+    output = "standalone",  # the default; static/vercel get no runnable
+    next_bin = ":next_cli",
+)
+
+next_standalone(
+    name = "app",
+    build = ":build",
+    next_bin = ":next_cli",  # borrowed for the hermetic Node
+)
+```
+
+- `bazel run //:app` — serve the app on the hermetic Node (honors
+  `PORT` / `HOSTNAME`).
+- `//:app.bundle` — a `TreeArtifact` ready for an image:
+
+  ```python
+  load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+  load("@rules_oci//oci:defs.bzl", "oci_image")
+
+  pkg_tar(name = "app_layer", srcs = ["//:app.bundle"], package_dir = "/app")
+  oci_image(
+      name = "image",
+      base = "@distroless_nodejs",
+      tars = [":app_layer"],
+      workdir = "/app",
+      # The bundle drops a fixed-name entry shim at its root (it discovers the
+      # nested server.js for you), so the cmd never changes per app:
+      cmd = ["__next_standalone_server.cjs"],
+  )
+  ```
+
+The standalone server resolves `/_next/static/*` relative to the cwd, so
+the runnable and the entry shim both `cd` to the bundle root, where
+`.next/static` is re-stitched.
+
+> `next_build` repairs the standalone `node_modules` so dynamic runtime
+> requires (e.g. `next`'s require-hook → `styled-jsx`) resolve — without
+> it the deref'd standalone crashes on boot. The trade-off is a heavier
+> `node_modules` than a pnpm-built standalone; see the CHANGELOG `0.3.0`
+> note.
 
 ## Hermeticity
 
