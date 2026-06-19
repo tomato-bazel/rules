@@ -1,3 +1,5 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -7,3 +9,16 @@ exports_files([
     "aspect.bzl",
     "providers.bzl",
 ])
+
+# The public API surface, for stardoc reference-doc generation (//docs).
+bzl_library(
+    name = "defs_bzl",
+    srcs = [
+        "aspect.bzl",
+        "defs.bzl",
+        "document.bzl",
+        "fragment.bzl",
+        "providers.bzl",
+    ],
+    deps = ["@aspect_bazel_lib//lib:write_source_files"],
+)

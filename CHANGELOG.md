@@ -2,6 +2,14 @@
 
 All notable changes to `rules_markdown`.
 
+## 0.0.2
+
+Additive — no migration needed.
+
+### Added
+- Stardoc reference docs (`//docs`, `bazel run //docs:update`) + a `bzl_library`
+  for the public API surface.
+
 ## 0.0.1
 
 Initial release.
