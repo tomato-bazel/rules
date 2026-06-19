@@ -2,6 +2,15 @@
 
 All notable changes to `rules_readme`.
 
+## 0.0.3
+
+Additive — no migration needed.
+
+### Added
+- Bumps `rules_markdown` to 0.0.3 — named template slots
+  (`markdown_fragment(slot = "x")` → `<!-- FRAGMENTS:x -->`) now flow through
+  `readme()` / `markdown_fragment`.
+
 ## 0.0.2
 
 Additive — no migration needed.
