@@ -2,6 +2,17 @@
 
 All notable changes to `rules_markdown`.
 
+## 0.0.3
+
+Additive — no migration needed.
+
+### Added
+- **Named template slots.** A `markdown_fragment(slot = "x")` routes to a
+  `<!-- FRAGMENTS:x -->` placeholder, so generated content can be placed at
+  specific spots in a template (e.g. two tables at two locations) instead of all
+  concatenated at the single `<!-- FRAGMENTS -->`. The default (unnamed) slot is
+  unchanged; a slot with fragments but no matching placeholder is a build error.
+
 ## 0.0.2
 
 Additive — no migration needed.

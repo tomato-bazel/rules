@@ -51,6 +51,7 @@ def _markdown_document_impl(ctx):
             "level": f.level,
             "weight": f.weight,
             "handle": f.handle,
+            "slot": f.slot,
             "tags": list(f.tags),
         }))
         args.add("--fragment", f.frag_id, format = "%s=" + f.md_file.path)

@@ -35,6 +35,7 @@ def _markdown_fragment_impl(ctx):
         level = ctx.attr.level,
         weight = ctx.attr.weight,
         handle = ctx.attr.anchor or ctx.label.name,
+        slot = ctx.attr.slot,
         tags = tuple(ctx.attr.classifiers),
     )
     transitive = [d[MarkdownFragmentInfo].fragments for d in ctx.attr.deps]
@@ -51,6 +52,7 @@ markdown_fragment = rule(
         "title": attr.string(doc = "Section heading text. If set, md_gen injects a `level` heading; it's also the deep-link target."),
         "level": attr.int(default = 2, doc = "Heading level for `title` (default 2 -> `##`)."),
         "weight": attr.int(default = 0, doc = "Sort key within the document (ascending)."),
+        "slot": attr.string(doc = "Target a named template placeholder `<!-- FRAGMENTS:<slot> -->` (for generated content placed at a specific spot). Default: the unnamed `<!-- FRAGMENTS -->`."),
         "anchor": attr.string(doc = "Explicit deep-link handle (defaults to the target name). Reference it elsewhere as `mdref:<handle>`."),
         "classifiers": attr.string_list(doc = "Free-form classifiers (e.g. category/section); exposed in fragment metadata."),
         "deps": attr.label_list(providers = [[MarkdownFragmentInfo]], doc = "Child fragments folded in transitively."),

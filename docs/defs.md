@@ -13,7 +13,7 @@ load("@rules_markdown//markdown:defs.bzl", "markdown_fragment", "markdown_docume
 <pre>
 load("@rules_markdown//markdown:defs.bzl", "markdown_fragment")
 
-markdown_fragment(<a href="#markdown_fragment-name">name</a>, <a href="#markdown_fragment-deps">deps</a>, <a href="#markdown_fragment-src">src</a>, <a href="#markdown_fragment-anchor">anchor</a>, <a href="#markdown_fragment-classifiers">classifiers</a>, <a href="#markdown_fragment-content">content</a>, <a href="#markdown_fragment-level">level</a>, <a href="#markdown_fragment-title">title</a>, <a href="#markdown_fragment-weight">weight</a>)
+markdown_fragment(<a href="#markdown_fragment-name">name</a>, <a href="#markdown_fragment-deps">deps</a>, <a href="#markdown_fragment-src">src</a>, <a href="#markdown_fragment-anchor">anchor</a>, <a href="#markdown_fragment-classifiers">classifiers</a>, <a href="#markdown_fragment-content">content</a>, <a href="#markdown_fragment-level">level</a>, <a href="#markdown_fragment-slot">slot</a>, <a href="#markdown_fragment-title">title</a>, <a href="#markdown_fragment-weight">weight</a>)
 </pre>
 
 Declare one composable markdown fragment (a section of a document).
@@ -30,6 +30,7 @@ Declare one composable markdown fragment (a section of a document).
 | <a id="markdown_fragment-classifiers"></a>classifiers |  Free-form classifiers (e.g. category/section); exposed in fragment metadata.   | List of strings | optional |  `[]`  |
 | <a id="markdown_fragment-content"></a>content |  Inline fragment body. Mutually exclusive with `src`.   | String | optional |  `""`  |
 | <a id="markdown_fragment-level"></a>level |  Heading level for `title` (default 2 -> `##`).   | Integer | optional |  `2`  |
+| <a id="markdown_fragment-slot"></a>slot |  Target a named template placeholder `<!-- FRAGMENTS:<slot> -->` (for generated content placed at a specific spot). Default: the unnamed `<!-- FRAGMENTS -->`.   | String | optional |  `""`  |
 | <a id="markdown_fragment-title"></a>title |  Section heading text. If set, md_gen injects a `level` heading; it's also the deep-link target.   | String | optional |  `""`  |
 | <a id="markdown_fragment-weight"></a>weight |  Sort key within the document (ascending).   | Integer | optional |  `0`  |
 

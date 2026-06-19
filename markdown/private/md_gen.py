@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 FRAGMENTS_MARK = "<!-- FRAGMENTS -->"
+NAMED_SLOT = re.compile(r"<!-- FRAGMENTS:([A-Za-z0-9_-]+) -->")
 TOC_MARK = "<!-- TOC -->"
 MDREF = re.compile(r"mdref:([A-Za-z0-9_.\-]+)")
 
@@ -62,13 +63,14 @@ def main() -> int:
     handle_to_slug = {}     # deep-link handle -> final in-doc anchor
     slug_counts = {}        # heading-id collision counter (GitHub -N suffixing)
     toc_entries = []        # (level, title, slug)
-    sections = []           # rendered fragment blocks, in order
+    slot_sections = {}      # slot ("" = default) -> rendered section blocks, in order
 
     for frag_id, body_path in bodies:
         meta = metas.get(frag_id, {})
         title = meta.get("title", "")
         level = int(meta.get("level", 2))
         handle = meta.get("handle", frag_id)
+        slot = meta.get("slot", "")
         body = Path(body_path).read_text().rstrip()
 
         if title:
@@ -83,11 +85,13 @@ def main() -> int:
                 return 1
             handle_to_slug[handle] = slug
             toc_entries.append((level, title, slug))
-            sections.append("%s %s\n\n%s" % ("#" * level, title, body))
+            rendered = "%s %s\n\n%s" % ("#" * level, title, body)
         else:
-            sections.append(body)
+            rendered = body
+        slot_sections.setdefault(slot, []).append(rendered)
 
-    fragments_md = "\n\n".join(s for s in sections if s).strip()
+    def slot_md(name):
+        return "\n\n".join(s for s in slot_sections.get(name, []) if s).strip()
 
     toc_md = ""
     if args.toc and toc_entries:
@@ -99,14 +103,32 @@ def main() -> int:
 
     if args.template:
         text = args.template.read_text()
-        if FRAGMENTS_MARK not in text:
+        # Named slots: <!-- FRAGMENTS:<slot> --> <- fragments declaring slot="<slot>".
+        used = set()
+
+        def _named(m):
+            used.add(m.group(1))
+            return slot_md(m.group(1))
+
+        text = NAMED_SLOT.sub(_named, text)
+        # Default slot: the unnamed <!-- FRAGMENTS -->.
+        default_md = slot_md("")
+        if default_md and FRAGMENTS_MARK not in text:
             sys.stderr.write("error: template %s is missing %s\n" % (args.template, FRAGMENTS_MARK))
             return 1
-        text = text.replace(FRAGMENTS_MARK, fragments_md)
+        text = text.replace(FRAGMENTS_MARK, default_md)
         text = text.replace(TOC_MARK, toc_md)
+        # Every slot that has fragments must have a placeholder in the template.
+        missing = sorted(s for s in slot_sections if s and s not in used)
+        if missing:
+            sys.stderr.write(
+                "error: template %s missing placeholder(s): %s\n"
+                % (args.template, ", ".join("<!-- FRAGMENTS:%s -->" % s for s in missing))
+            )
+            return 1
     else:
-        parts = [p for p in (toc_md, fragments_md) if p]
-        text = "\n\n".join(parts)
+        parts = [toc_md, slot_md("")] + [slot_md(s) for s in sorted(slot_sections) if s]
+        text = "\n\n".join(p for p in parts if p)
 
     # Resolve mdref:<handle> deep links against the handle table.
     dangling = []
