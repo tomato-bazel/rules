@@ -13,11 +13,23 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \\
 # --- end runfiles.bash initialization v3 ---
 """
 
+def _rlocationpath(ctx, f):
+    """Return the runfiles path `rlocation` expects for a File.
+
+    External files keep their canonical `<repo>/<path>` (short_path with the
+    leading `../` stripped); main-repo files are prefixed with the workspace
+    runfiles name.
+    """
+    sp = f.short_path
+    if sp.startswith("../"):
+        return sp[len("../"):]
+    return ctx.workspace_name + "/" + sp
+
 def _helm_push_impl(ctx):
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
 
-    helm_rloc = ctx.expand_location("$(rlocationpath //helm:helm_bin)", targets = [ctx.attr._helm])
-    tgz_rloc = ctx.expand_location("$(rlocationpath %s)" % ctx.attr.chart.label, targets = [ctx.attr.chart])
+    helm_rloc = _rlocationpath(ctx, ctx.file._helm)
+    tgz_rloc = _rlocationpath(ctx, ctx.file.chart)
 
     script = _RUNFILES_PREAMBLE + """\
 HELM="$(rlocation {helm})"
