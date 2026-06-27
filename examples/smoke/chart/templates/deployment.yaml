@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smoke
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: smoke
+  template:
+    metadata:
+      labels:
+        app: smoke
+    spec:
+      containers:
+        - name: smoke
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
