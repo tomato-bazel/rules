@@ -1,0 +1,4 @@
+package(default_visibility = ["//visibility:public"])
+
+# The shared .bazelrc snippet, consumable by other repos (the ratchet syncs it).
+exports_files(["common.bazelrc"])

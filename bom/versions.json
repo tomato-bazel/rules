@@ -1,0 +1,29 @@
+{
+  "description": "Canonical fastverk dependency versions — the BOM. The `rels deps` ratchet audits every repo's MODULE.bazel against this and opens coordinated bumps; repos should not float below these. This is a manifest (data), NOT transitive bazel_deps, so consuming rules_fastverk doesn't pull the whole constellation.",
+  "modules": {
+    "platforms": "1.0.0",
+    "bazel_skylib": "1.8.2",
+    "rules_python": "1.7.0",
+    "rules_shell": "0.6.1",
+    "rules_rust": "0.70.0",
+    "protobuf": "33.4",
+    "stardoc": "0.7.2",
+    "rules_oci": "2.2.6",
+    "rules_pkg": "1.0.1",
+    "aspect_bazel_lib": "2.22.5",
+    "rules_proto": "7.1.0",
+    "rules_java": "8.6.1",
+    "rules_jvm_external": "6.6",
+    "rules_mdbook": "0.3.1",
+    "rules_gitlab": "0.3.2",
+    "rules_readme": "0.0.3",
+    "rules_cloudformation": "0.8.0",
+    "rules_helm": "0.1.0",
+    "brand": "0.2.0"
+  },
+  "notes": {
+    "rules_python": "Held at 1.7.0 — Agent-A's rules_gitlab 0.3.2 toolchain wants it; a 2.x move is a later coordinated bump (re-verify rules_gitlab first).",
+    "rules_ci": "Renamed from rules_ci_ir; key it here once Agent-A publishes the first registry version.",
+    "brand": "Bump to 0.3.0 once the @brand//mdbook:theme release lands (0.2.0 is the last published)."
+  }
+}
