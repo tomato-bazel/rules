@@ -19,7 +19,7 @@ and [`rules_nextjs`](https://github.com/fastverk/rules_nextjs).
 `.bazelrc`:
 
 ```
-common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://registry.fastverk.com/
 common --registry=https://bcr.bazel.build/
 ```
 
