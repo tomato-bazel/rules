@@ -9,10 +9,10 @@ genrule + mdbook_book pattern fastverk/docs uses inline).
 load("@rules_mdbook//mdbook:defs.bzl", "mdbook_book")
 
 # The @brand//mdbook:theme files (by basename) and where each lands under the
-# book's theme/. Coupled to the brand theme's (stable) layout; if brand adds a
-# theme file, add it here.
+# book's theme/. The theme is `additional-css`-only (it must NOT ship a
+# variables.css — that replaces mdBook's default + drops its layout vars). If
+# brand adds/removes a theme file, update this map.
 _BRAND_THEME = {
-    "variables.css": "theme/css/variables.css",
     "custom.css": "theme/css/custom.css",
     "fonts.css": "theme/fonts/fonts.css",
     "SpaceGrotesk-Medium.ttf": "theme/fonts/SpaceGrotesk-Medium.ttf",
