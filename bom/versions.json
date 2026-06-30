@@ -1,5 +1,5 @@
 {
-  "description": "Canonical fastverk dependency versions — the BOM. The `rels deps` ratchet audits every repo's MODULE.bazel against this and opens coordinated bumps; repos should not float below these. This is a manifest (data), NOT transitive bazel_deps, so consuming rules_fastverk doesn't pull the whole constellation.",
+  "description": "Canonical tomato-bazel distribution dependency versions — the BOM. The `rels deps` ratchet audits every repo's MODULE.bazel against this and opens coordinated bumps; repos should not float below these. This is a manifest (data), NOT transitive bazel_deps, so consuming rules_tomato doesn't pull the whole constellation.",
   "modules": {
     "platforms": "1.0.0",
     "bazel_skylib": "1.8.2",

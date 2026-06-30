@@ -1,8 +1,8 @@
-"""fastverk convention macros.
+"""tomato-bazel convention macros.
 
-`fastverk_mdbook` — a brand-themed mdBook in one call: wraps rules_mdbook's
+`tomato_mdbook` — a brand-themed mdBook in one call: wraps rules_mdbook's
 `mdbook_book` and stages `@brand//mdbook:theme` at the book's `theme/` dir, so
-every fastverk docs site is branded by construction (the generalized form of the
+every docs site is branded by construction (the generalized form of the
 genrule + mdbook_book pattern fastverk/docs uses inline).
 """
 
@@ -21,7 +21,7 @@ _BRAND_THEME = {
     "favicon.svg": "theme/favicon.svg",
 }
 
-def fastverk_mdbook(name, book_toml = "book.toml", srcs = None, theme = "@brand//mdbook:theme", out = None, **kwargs):
+def tomato_mdbook(name, book_toml = "book.toml", srcs = None, theme = "@brand//mdbook:theme", out = None, **kwargs):
     """A brand-themed mdBook.
 
     Args:
@@ -32,7 +32,7 @@ def fastverk_mdbook(name, book_toml = "book.toml", srcs = None, theme = "@brand/
       out: output tarball name (default "<name>.tar.gz").
       **kwargs: forwarded to mdbook_book (e.g. plugins).
 
-    One fastverk_mdbook per package (the staged theme/ paths are fixed).
+    One tomato_mdbook per package (the staged theme/ paths are fixed).
     """
     if srcs == None:
         srcs = native.glob(["src/**/*.md"])
@@ -59,3 +59,6 @@ def fastverk_mdbook(name, book_toml = "book.toml", srcs = None, theme = "@brand/
         out = out,
         **kwargs
     )
+
+# Back-compat alias (deprecated; prefer tomato_mdbook).
+fastverk_mdbook = tomato_mdbook

@@ -6,7 +6,7 @@ exports_files(["defs.bzl"])
 
 # Loadable for stardoc. (rules_mdbook's :defs_bzl isn't externally visible, so
 # we don't list it as a dep; the load is exercised when a consumer expands
-# fastverk_mdbook — e.g. fastverk/docs.)
+# tomato_mdbook — e.g. fastverk/docs.)
 bzl_library(
     name = "defs",
     srcs = ["defs.bzl"],
