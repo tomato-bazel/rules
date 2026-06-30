@@ -1,0 +1,20 @@
+# The tomato-bazel convention contract: the shape every rules module must satisfy.
+# Validate the ecosystem RDF projection (tools/graph/graph.py -> ecosystem.ttl)
+# against this with rules_jena's SHACL validator — the machine-checkable gate that
+# turns "follow the conventions" into a CI pass/fail.
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix fv:  <https://tomato-bazel.dev/ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+fv:RulesModuleShape a sh:NodeShape ;
+    sh:targetClass fv:Module ;
+    sh:property [ sh:path fv:has_README   ; sh:hasValue true ;
+                  sh:message "every rules module must ship a README.md" ] ;
+    sh:property [ sh:path fv:has_LICENSE   ; sh:hasValue true ;
+                  sh:message "every rules module must ship a LICENSE" ] ;
+    sh:property [ sh:path fv:has_CHANGELOG ; sh:hasValue true ;
+                  sh:message "every rules module must ship a CHANGELOG.md" ] ;
+    sh:property [ sh:path fv:has_docs      ; sh:hasValue true ;
+                  sh:message "every rules module must ship docs/ (stardoc)" ] ;
+    sh:property [ sh:path fv:has_examples  ; sh:hasValue true ;
+                  sh:message "every rules module must ship examples/" ] .
