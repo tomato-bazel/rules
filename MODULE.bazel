@@ -1,14 +1,23 @@
 module(
     name = "rules_chrome",
-    version = "0.1.0",
+    version = "0.1.1",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
+# Required by the EXPORTED Playwright rules, so they must be visible to
+# CONSUMERS (not dev-only): `chrome/playwright/js.bzl` uses aspect_rules_js's
+# `js_test`/`js_library`, and `chrome/playwright/BUILD.bazel` declares a
+# `py_library` via rules_python. When these were `dev_dependency = True`, any
+# consumer loading `chrome/playwright/js.bzl` (or `py.bzl`) failed with
+# "No repository visible as '@aspect_rules_js'/'@rules_python'" — the playwright
+# rules were unusable outside this repo's own examples.
+bazel_dep(name = "aspect_rules_js", version = "3.1.2")
+bazel_dep(name = "rules_python", version = "2.0.1")
+
 # Dev-only: only loaded by docs/BUILD.bazel and examples/...
 bazel_dep(name = "rules_shell", version = "0.6.1", dev_dependency = True)
-bazel_dep(name = "rules_python", version = "2.0.1", dev_dependency = True)
 bazel_dep(name = "stardoc", version = "0.7.2", dev_dependency = True)
 
 # Dev-only end-to-end smoke: pulls @chrome + @chromedriver for
@@ -47,12 +56,10 @@ pip.parse(
 )
 use_repo(pip, "smoke_pip")
 
-# Dev-only: hermetic Node + Playwright (Node bindings) for the JS
-# integration smoke in `examples/smoke:playwright_node_smoke_test`.
-# aspect_rules_js pulls a pnpm-managed node_modules from
-# `examples/smoke/pnpm-lock.yaml`; rules_nodejs supplies the node
-# toolchain. Both are scoped to the smoke target.
-bazel_dep(name = "aspect_rules_js", version = "3.1.2", dev_dependency = True)
+# Dev-only: rules_nodejs supplies the node toolchain for the JS integration
+# smoke in `examples/smoke:playwright_node_smoke_test`. Consumers register their
+# own node toolchain, so this stays dev-only. (aspect_rules_js is declared
+# non-dev above — the exported playwright js rule needs it.)
 bazel_dep(name = "rules_nodejs", version = "6.7.4", dev_dependency = True)
 
 node = use_extension(
