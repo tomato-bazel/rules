@@ -15,8 +15,11 @@ load("@rules_mdbook//mdbook:defs.bzl", "mdbook_book")
 _BRAND_THEME = {
     "custom.css": "theme/css/custom.css",
     "fonts.css": "theme/fonts/fonts.css",
-    "SpaceGrotesk-Medium.ttf": "theme/fonts/SpaceGrotesk-Medium.ttf",
-    "SpaceGrotesk-SemiBold.ttf": "theme/fonts/SpaceGrotesk-SemiBold.ttf",
+    # brando is generic — it stages the brand's faces under brand-neutral names
+    # (fonts.css references these), NOT a specific font family. Mirror those so
+    # tomato_mdbook is font-agnostic and works with any brand's theme.
+    "brand-medium.ttf": "theme/fonts/brand-medium.ttf",
+    "brand-semibold.ttf": "theme/fonts/brand-semibold.ttf",
     "head.hbs": "theme/head.hbs",
     "favicon.svg": "theme/favicon.svg",
 }
