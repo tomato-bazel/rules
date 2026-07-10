@@ -1,0 +1,19 @@
+"""oci — `rust_service_image` macro + the shared distroless/cc base image.
+
+A plugin's image target consumes `rust_service_image` from
+`@rules_fastverk_plugin//oci:defs.bzl`. This BUILD exposes a convenience alias on
+the distroless/cc base pulled in MODULE.bazel so consumers don't have to learn the
+underlying `@rules_fastverk_plugin_distroless_cc` repo name.
+"""
+
+package(default_visibility = ["//visibility:public"])
+
+# Re-export the distroless/cc base pulled in MODULE.bazel. The macro's default
+# base is `Label("//oci:base_image")`, which resolves to THIS alias regardless of
+# which repo calls `rust_service_image`.
+alias(
+    name = "base_image",
+    actual = "@rules_fastverk_plugin_distroless_cc",
+)
+
+exports_files(["defs.bzl"])

@@ -1,0 +1,2 @@
+# rules_fastverk_plugin — root package. The macros live under //plugin and //oci.
+package(default_visibility = ["//visibility:public"])

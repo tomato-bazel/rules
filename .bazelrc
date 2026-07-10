@@ -1,0 +1,7 @@
+common --enable_bzlmod
+
+# fastverk's private bazel-registry first (rules_oci pins, etc.), then the BCR.
+common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://bcr.bazel.build/
+
+try-import %workspace%/.bazelrc.user
