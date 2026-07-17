@@ -20,6 +20,7 @@
     "rules_readme": "0.0.3",
     "rules_cloudformation": "0.8.0",
     "rules_helm": "0.1.0",
+    "rules_k8s": "0.0.2",
     "brand": "0.2.0"
   },
   "notes": {
