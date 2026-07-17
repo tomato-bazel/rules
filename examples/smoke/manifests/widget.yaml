@@ -1,0 +1,12 @@
+apiVersion: smoke.rules-k8s.dev/v1
+kind: Widget
+metadata:
+  name: good-widget
+  namespace: default
+spec:
+  host: widgets.example.com
+  replicas: 3
+  mode: Fast
+  engine:
+    image: ghcr.io/example/engine:v1
+    args: ["--verbose"]

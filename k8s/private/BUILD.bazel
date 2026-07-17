@@ -1,0 +1,35 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//k8s:__pkg__"])
+
+bzl_library(
+    name = "schemas",
+    srcs = ["schemas.bzl"],
+    deps = ["//crd:providers"],
+)
+
+bzl_library(
+    name = "bundle",
+    srcs = ["bundle.bzl"],
+    deps = [
+        ":schemas",
+        "//crd:providers",
+        "//k8s:providers",
+    ],
+)
+
+bzl_library(
+    name = "validate",
+    srcs = ["validate.bzl"],
+    deps = [
+        ":schemas",
+        "//crd:providers",
+        "//k8s:providers",
+    ],
+)
+
+bzl_library(
+    name = "diff",
+    srcs = ["diff.bzl"],
+    deps = ["//k8s:providers"],
+)

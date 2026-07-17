@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+# gazelle:ignore
+
+go_library(
+    name = "crd2jsonschema_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/tomato-bazel/rules_k8s/validate/private/crd2jsonschema",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//internal/params",
+        "@io_k8s_sigs_yaml//:yaml",
+    ],
+)
+
+go_binary(
+    name = "crd2jsonschema",
+    embed = [":crd2jsonschema_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "crd2jsonschema_test",
+    srcs = ["seal_test.go"],
+    embed = [":crd2jsonschema_lib"],
+)

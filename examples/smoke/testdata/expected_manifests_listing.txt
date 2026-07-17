@@ -1,0 +1,1 @@
+smoke.rules-k8s.dev/Widget/default/good-widget

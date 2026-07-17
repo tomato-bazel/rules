@@ -1,0 +1,42 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_oci//oci:pull.bzl", "oci_pull")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["defs.bzl"])
+
+# The platform an operator image targets. Plain os/cpu constraints rather than
+# rules_go's `//go/toolchain:linux_amd64`, so the same rule serves a Rust operator
+# (the org has a Rust operator) as well as a Go one.
+platform(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+# The default base. Referenced from oci/defs.bzl via Label(), so it pins to
+# rules_k8s no matter which repo calls the macro — the bug that forced the org's
+# a shared image macro to be copy-pasted across repos.
+#
+# distroless/static: an operator is a static Go binary with no libc need. A Rust
+# operator linking dynamically wants cc-debian12 instead — pass `base`.
+alias(
+    name = "base_image",
+    actual = "@rules_k8s_distroless_static",
+    # `manual` because this is only ever reachable THROUGH the transition. Built
+    # directly on a non-linux host it fails with "could not find an image matching
+    # the target platform" — the base is linux/amd64 only, by design — and that
+    # would break `bazel build //...` for everyone.
+    tags = ["manual"],
+)
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    # No stardoc for this one — @rules_pkg//pkg:tar.bzl transitively loads
+    # @rules_pkg//pkg/private:util.bzl, which rules_pkg does not export outside
+    # itself. See //docs:BUILD.bazel.
+    deps = ["//oci/private:transition"],
+)

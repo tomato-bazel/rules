@@ -1,0 +1,12 @@
+# Deliberately invalid: replicas exceeds the +kubebuilder:validation:Maximum=99
+# marker, and mode is not in the Enum. k8s_validate MUST reject this — a
+# validator that only ever passes is not a test.
+apiVersion: smoke.rules-k8s.dev/v1
+kind: Widget
+metadata:
+  name: bad-widget
+  namespace: default
+spec:
+  host: widgets.example.com
+  replicas: 1000
+  mode: Sideways

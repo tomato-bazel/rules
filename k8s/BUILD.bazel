@@ -1,0 +1,25 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "providers.bzl",
+])
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    deps = [
+        ":providers",
+        "//k8s/private:bundle",
+        "//k8s/private:diff",
+        "//k8s/private:schemas",
+        "//k8s/private:validate",
+    ],
+)
+
+bzl_library(
+    name = "providers",
+    srcs = ["providers.bzl"],
+)
