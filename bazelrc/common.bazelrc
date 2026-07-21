@@ -11,7 +11,7 @@ common --enable_bzlmod
 common --experimental_isolated_extension_usages
 
 # The fastverk registry chain (constellation modules + BCR).
-common --registry=https://registry.fastverk.com/
+common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
 
 # Private fastverk module sources resolve via the credential helper.
