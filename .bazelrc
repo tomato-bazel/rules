@@ -2,7 +2,7 @@ common --enable_bzlmod
 
 # fastverk registry first (hosts rules_markdown, the layer this builds on); BCR
 # is the fallback. Reproducibility comes from the committed MODULE.bazel.lock.
-common --registry=https://registry.fastverk.com/
+common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
 
 test --test_output=errors

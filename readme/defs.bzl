@@ -44,6 +44,36 @@ def readme(
         `None` to skip materialization.
       **kwargs: forwarded (visibility, tags, …).
     """
+
+    # `markdown_document` names its rendered output `<name>.md`, and `write_to`
+    # puts the source file in the same package. If those two differ only by
+    # case, they are DISTINCT paths on Linux and the SAME path on macOS and
+    # Windows, whose filesystems are case-insensitive by default.
+    #
+    # The failure that produces is unrecognizable as a naming problem:
+    #
+    #   Could not copy inputs into sandbox: [unix_jni.cc:297]
+    #   .../examples/profile/readme.md (File exists)
+    #
+    # and it only appears on some machines — a case-sensitive APFS volume
+    # reproduces Linux's behavior and passes, so it reads as flaky CI.
+    #
+    # The obvious spelling is the one that breaks: readme(name = "readme")
+    # with the default write_to = "README.md" collides. Fail at load time with
+    # something actionable instead.
+    if write_to:
+        rendered = name + ".md"
+        if rendered != write_to and rendered.lower() == write_to.lower():
+            fail(
+                ("readme(name = %r) renders to %r, which differs from write_to = %r " +
+                 "only by case. Those are two files on Linux but one on macOS and " +
+                 "Windows, where the build fails with an opaque \"Could not copy " +
+                 "inputs into sandbox ... (File exists)\".\n" +
+                 "Rename the target (e.g. name = %r) so the rendered file and the " +
+                 "materialized file have genuinely different names.") %
+                (name, rendered, write_to, name + "_doc"),
+            )
+
     _markdown_document(
         name = name,
         template = template,
