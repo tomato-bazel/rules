@@ -1,7 +1,28 @@
 common --enable_bzlmod
 
-common --registry=https://registry.fastverk.com/
+common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
+
+# Jena ships class file version 61.0 (Java 17). Nothing here pinned a Java
+# runtime, so the version came from whatever Bazel resolved by default — which
+# differed between a developer machine and the CI runner. Locally the tool ran
+# fine; on both CI platforms it died with
+#
+#   Unable to initialize main class dev.fastverk.xsd.XsdToVocab
+#   Caused by: java.lang.UnsupportedClassVersionError:
+#       org/apache/jena/rdf/model/RDFNode has been compiled by a more recent
+#       version of the Java Runtime (class file version 61.0)
+#
+# Reproduced deliberately with --tool_java_runtime_version=remotejdk_11, which
+# fails identically — confirming the runtime version, not the code, was the
+# variable.
+#
+# tool_java_runtime_version is the load-bearing one: xsd_to_vocab runs as a
+# BUILD ACTION (an exec-configuration tool), so it is the tool runtime that
+# executes Jena, not the target runtime. Both are pinned so the two configs
+# cannot drift apart again.
+common --java_runtime_version=remotejdk_21
+common --tool_java_runtime_version=remotejdk_21
 
 test --test_output=errors
 test --test_summary=terse
