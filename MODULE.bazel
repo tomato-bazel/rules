@@ -9,30 +9,25 @@
 # savvi-studio schemaorg tooling.
 module(
     name = "rules_schema_org",
-    version = "0.0.1",
+    version = "0.0.3",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
-# RDF toolchain types + the resource-pin / dataset / reason / sparql
-# rules. 0.3.0 adds rdf.resource, deps-closure, the namespace aspect,
-# and the sparql_query producer.
-bazel_dep(name = "rules_rdf", version = "0.3.0")
-local_path_override(
-    module_name = "rules_rdf",
-    path = "../rules_rdf",
-)
-
+# RDF toolchain types + the resource-pin / dataset / reason / sparql rules.
+#
+# These pins are the versions this module is actually BUILT against, and that
+# is a change: 0.0.1 declared rules_rdf 0.3.0 / rules_jena 0.2.1 while carrying
+# a local_path_override onto sibling working trees, so it only ever built
+# against whatever was checked out at ../rules_rdf and ../rules_jena. Resolving
+# the declared versions for real fails — jena_riot 0.2.1 has no --input-file —
+# which is exactly the breakage an override in a published module hides.
+bazel_dep(name = "rules_rdf", version = "0.4.0")
 # Apache Jena — concrete SPARQL/reasoner/serializer/validator backends.
 # Its MODULE auto-registers all four rules_rdf toolchains, so
 # rdf_reason / sparql_query work here with no further wiring.
-bazel_dep(name = "rules_jena", version = "0.2.1")
-local_path_override(
-    module_name = "rules_jena",
-    path = "../rules_jena",
-)
-
+bazel_dep(name = "rules_jena", version = "0.3.2")
 # ns_tool (the rdf_namespace_aspect's extractor) is a py_binary, so a
 # python toolchain must be registered here.
 bazel_dep(name = "rules_python", version = "1.7.0")
