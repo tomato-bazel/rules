@@ -5,7 +5,7 @@
 # Endpoints OpenAPI spec (Phase 2). `hf_model` is a typed repo ref.
 module(
     name = "rules_huggingface",
-    version = "0.0.3",
+    version = "0.0.4",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -26,14 +26,13 @@ bazel_dep(name = "rules_python", version = "1.7.0")
 # The HF Inference Endpoints REST API is a clean OpenAPI surface, so
 # the `hf_inference_endpoint` rule drives a typed Rust client
 # codegen'd by rules_openapi (progenitor) from the vendored spec —
-# tighter than shelling to `hf endpoints`. Local override during dev;
-# promote to the premium registry once published.
+# tighter than shelling to `hf endpoints`.
+#
+# This carried a local_path_override onto ../rules_openapi — a dev convenience
+# that shipped. It resolves from the registry now; verified by building //...
+# with no override in play. Use --override_module in a gitignored .bazelrc.user
+# for sibling-checkout development, so it cannot be published again.
 bazel_dep(name = "rules_openapi", version = "0.2.1")
-local_path_override(
-    module_name = "rules_openapi",
-    path = "../rules_openapi",
-)
-
 bazel_dep(name = "rules_rust", version = "0.70.0")
 
 # Dev-only.
