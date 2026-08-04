@@ -6,6 +6,32 @@ analog of how this org already does container images (`rules_oci`) and protos.
 Helm itself is fetched hermetically (a pinned per-platform binary from
 get.helm.sh), so `bazel build`-ing a chart needs nothing installed on the host.
 
+## `helm_template`
+
+Render a chart someone else published into manifests you can read, review, diff
+and gate:
+
+```python
+load("@rules_helm//helm:defs.bzl", "helm_template")
+
+helm_template(
+    name = "argocd_manifests",
+    chart = "@argo_cd_chart//file",   # http_file, pinned by sha256
+    release_name = "argocd",
+    namespace = "argocd",
+    values = ["values.yaml"],
+)
+```
+
+`helm install` renders and applies in one motion, so what actually reached the
+cluster is knowable only afterwards, by asking the cluster. Rendering to a file
+makes it reviewable **before** anything moves, byte-stable across rebuilds, and
+diffable against a live cluster.
+
+The action has no network, so `chart` must be a self-contained `.tgz` — a chart
+with unvendored subcharts fails here rather than silently fetching them. Pin it
+with `http_file` + sha256 so the render is a pure function of committed inputs.
+
 ## Rules
 
 | Rule | Kind | What it does |
