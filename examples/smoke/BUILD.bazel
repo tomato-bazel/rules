@@ -1,4 +1,5 @@
-load("@rules_helm//helm:defs.bzl", "helm_chart", "helm_lint", "helm_push")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_helm//helm:defs.bzl", "helm_chart", "helm_lint", "helm_push", "helm_template")
 
 # All chart files the action needs (the sandbox sees only declared inputs).
 _SRCS = [
@@ -25,3 +26,25 @@ helm_push(
     chart = ":smoke",
     repository = "ghcr.io/fastverk/charts",
 )
+
+# ── helm_template ────────────────────────────────────────────────────────────
+# Round-trips the chart this package already builds: helm_chart packages it, then
+# helm_template renders it back to manifests. Self-contained, so the test proves
+# the rule works without depending on any third-party chart staying published.
+helm_template(
+    name = "smoke_rendered",
+    chart = ":smoke",
+    namespace = "smoke-ns",
+    release_name = "smoke-release",
+    values = ["chart/values.yaml"],
+)
+
+# The whole point of rendering to a file is that the output is reviewable and
+# STABLE. If a helm upgrade or a rule change perturbs it, that must surface as a
+# failing test rather than as a silent difference in what reaches a cluster.
+diff_test(
+    name = "smoke_rendered_stable",
+    file1 = "expected_smoke_rendered.yaml",
+    file2 = ":smoke_rendered",
+)
+

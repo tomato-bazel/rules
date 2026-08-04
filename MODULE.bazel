@@ -12,7 +12,7 @@ Resolution: the fastverk private bazel-registry (see .bazelrc). Published via th
 
 module(
     name = "rules_helm",
-    version = "0.1.0",
+    version = "0.2.0",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
