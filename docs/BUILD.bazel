@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//util:write_source_files.bzl", "write_source_files")
 load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+load("//util:write_source_files.bzl", "write_source_files")
 
 package(default_visibility = ["//visibility:public"])
 

@@ -31,11 +31,11 @@ rust_test(
 # diff_test below catches drift.
 jsonschema_starlark_codegen(
     name = "person_rules_gen",
-    schema = "person.json",
     kinds = [
         ("person", "#", "smoke_person", "PersonInfo"),
         ("address", "#/$defs/address", "smoke_address", "AddressInfo"),
     ],
+    schema = "person.json",
 )
 
 diff_test(
@@ -50,9 +50,9 @@ diff_test(
 # Rust version does.
 jsonschema_go_library(
     name = "person_go_types",
-    schema = "person.json",
     importpath = "github.com/fastverk/rules_jsonschema/examples/smoke/person_go_types",
     package = "person_go_types",
+    schema = "person.json",
 )
 
 go_test(

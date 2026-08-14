@@ -3,7 +3,13 @@
 //! Two responsibilities split out of `main.rs`:
 //!
 //!   * `emit_preamble` writes the file-header comment + `load(...)`
-//!     of `strip_empty` / `parse_json_or_none`.
+//!     of `strip_unset` / `parse_json_or_none`.
+//!
+//! ⛔ `strip_unset`, NOT `strip_empty`. The latter also drops `False`/`0`/`[]`/`{}`,
+//! which makes an explicitly requested `false` indistinguishable from an omission —
+//! and that fails OPEN whenever the schema default is truthy. Measured in
+//! tomato-bazel/rules_cloudformation#2 on `EmptyOnDelete = "false"`, which rendered
+//! as no key at all. `strip_empty` remains exported for already-generated files.
 //!   * `emit_rule` writes one `provider() + def _impl(): + rule()`
 //!     trio per schema definition the caller requested.
 //!
@@ -29,7 +35,7 @@ pub fn emit_preamble(out: &mut String, schema_path: &str) {
     let _ = writeln!(out);
     let _ = writeln!(
         out,
-        r#"load("@rules_jsonschema//runtime:helpers.bzl", "parse_json_or_none", "strip_empty")"#
+        r#"load("@rules_jsonschema//runtime:helpers.bzl", "parse_json_or_none", "strip_unset")"#
     );
     let _ = writeln!(out);
 }
@@ -97,7 +103,7 @@ pub fn emit_rule(out: &mut String, kind: &Kind, def: &Value, root: &Value) -> Re
         }
     }
     let _ = writeln!(out, "    }}");
-    let _ = writeln!(out, "    payload = strip_empty(payload)");
+    let _ = writeln!(out, "    payload = strip_unset(payload)");
     let _ = writeln!(
         out,
         r#"    shard = ctx.actions.declare_file(ctx.label.name + ".{id}.json")"#,

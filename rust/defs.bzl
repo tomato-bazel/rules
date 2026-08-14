@@ -21,6 +21,7 @@ _TOOLCHAIN = "@rules_jsonschema//jsonschema:rust_codegen_toolchain_type"
 def _rust_codegen_action_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".rs")
     tc = ctx.toolchains[_TOOLCHAIN].codegen_info
+
     # Plugin contract: stdin = schema bytes, stdout = generated file,
     # argv = --key=value pairs (see //jsonschema/plugin_contract.md).
     cmd_parts = [

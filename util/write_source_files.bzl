@@ -57,6 +57,7 @@ def _write_source_files_impl(ctx):
             ))
         src_file = src_files[0]
         runfile_inputs.append(src_file)
+
         # `dest` is package-relative; combine with the rule's package
         # to get the workspace-relative path.
         full_dest = "{}/{}".format(package, dest) if package else dest

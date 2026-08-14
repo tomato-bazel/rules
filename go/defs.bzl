@@ -23,6 +23,7 @@ _TOOLCHAIN = "@rules_jsonschema//jsonschema:go_codegen_toolchain_type"
 def _go_codegen_action_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".go")
     tc = ctx.toolchains[_TOOLCHAIN].codegen_info
+
     # Plugin contract: stdin = schema bytes, stdout = generated file,
     # argv = --key=value pairs.
     cmd_parts = [

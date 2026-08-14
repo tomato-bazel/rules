@@ -5,7 +5,7 @@
 # Refresh via the generating rule's `update` script;
 # the diff_test will fail until you do.
 
-load("@rules_jsonschema//runtime:helpers.bzl", "parse_json_or_none", "strip_empty")
+load("@rules_jsonschema//runtime:helpers.bzl", "parse_json_or_none", "strip_unset")
 
 PersonInfo = provider(
     doc = "A person contributed by a target. Shard JSON matches the person schema.",
@@ -23,7 +23,7 @@ def _smoke_person_impl(ctx):
         "favourite_colour": ctx.attr.favourite_colour,
         "name": ctx.attr.name_override,
     }
-    payload = strip_empty(payload)
+    payload = strip_unset(payload)
     shard = ctx.actions.declare_file(ctx.label.name + ".person.json")
     ctx.actions.write(shard, json.encode(payload))
     return [
@@ -70,7 +70,7 @@ def _smoke_address_impl(ctx):
         "line1": ctx.attr.line1,
         "line2": ctx.attr.line2,
     }
-    payload = strip_empty(payload)
+    payload = strip_unset(payload)
     shard = ctx.actions.declare_file(ctx.label.name + ".address.json")
     ctx.actions.write(shard, json.encode(payload))
     return [

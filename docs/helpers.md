@@ -46,6 +46,9 @@ strip_empty(<a href="#strip_empty-d">d</a>)
 
 Drop dict entries whose values are absent / zero / empty.
 
+⛔ Do not use this where a `false` is meaningful: it cannot express one, and the
+failure is silent. See [`strip_unset`].
+
 Matches the JSON `omitempty` convention so generated shards stay
 terse — Bazel `attr.*` zero values (0, False, "", [], {}) shouldn't
 serialise as explicit overrides. Distinguishing "user set to 0"
@@ -53,11 +56,72 @@ from "user didn't set" isn't possible at the Starlark layer, so
 we conflate them: every typed schema field that wants to mean
 something non-default ships a non-zero/-empty value.
 
+⚠ That last sentence is FALSE for anything routed through
+[`parse_json_or_none`], which already returns `None` for an unset attr — so
+`None` and `False` were distinguishable all along. It is retained because it
+documents what this function still does.
+
+
 **PARAMETERS**
 
 
 | Name  | Description | Default Value |
 | :------------- | :------------- | :------------- |
-| <a id="strip_empty-d"></a>d |  <p align="center"> - </p>   |  none |
+| <a id="strip_empty-d"></a>d |  the property payload to filter.   |  none |
+
+**RETURNS**
+
+`d` without absent, zero or empty entries.
+
+**DEPRECATED**
+
+Generated code now emits [`strip_unset`], which drops only values the caller
+never set. This is kept because previously generated `.bzl` loads it by name,
+and because dropping `[]`/`{}` is defensible for hand-written callers.
+
+
+<a id="strip_unset"></a>
+
+## strip_unset
+
+<pre>
+load("@rules_jsonschema//runtime:helpers.bzl", "strip_unset")
+
+strip_unset(<a href="#strip_unset-d">d</a>)
+</pre>
+
+Drop dict entries the caller never set — and ONLY those.
+
+⛔ THE DIFFERENCE FROM [`strip_empty`] IS A CORRECTNESS ONE, NOT A STYLE ONE.
+`strip_empty` also drops `False`, `0`, `[]` and `{}`, which makes an explicitly
+requested `false` indistinguishable from an omission. That fails OPEN whenever the
+schema's own default is truthy: `AWS::EKS::Cluster`'s
+`ResourcesVpcConfig.EndpointPublicAccess` defaults **true**, so "private endpoint
+only" is exactly the shape that silently renders as a public endpoint. See
+tomato-bazel/rules_cloudformation#2, where it was measured.
+
+⭐ AND THE INFORMATION WAS NEVER ACTUALLY LOST. Every generated attr is a STRING;
+a `bool`, `int`, `list` or `dict` can only appear in the payload because
+[`parse_json_or_none`] decoded one — and that function already returns `None` for
+an unset attr. So `None` means "not set" and `False` means "set to false", and
+they were distinguishable all along. `strip_empty`'s docstring says the opposite;
+that claim is wrong for anything routed through `parse_json_or_none`.
+
+⚠ `""` is still dropped, and that one IS genuinely ambiguous: an unset
+`attr.string` and one set to the empty string are the same value at this layer.
+Expressing an intentional empty string needs a sentinel default at codegen, which
+is a larger change than this.
+
+
+**PARAMETERS**
+
+
+| Name  | Description | Default Value |
+| :------------- | :------------- | :------------- |
+| <a id="strip_unset-d"></a>d |  the property payload to filter.   |  none |
+
+**RETURNS**
+
+`d` without the entries the caller never set.
 
 
