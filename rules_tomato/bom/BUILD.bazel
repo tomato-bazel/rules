@@ -1,0 +1,4 @@
+package(default_visibility = ["//visibility:public"])
+
+# The canonical dependency BOM, consumed by the rels deps ratchet.
+exports_files(["versions.json"])

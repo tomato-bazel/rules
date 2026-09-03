@@ -1,0 +1,96 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# The canonical RDF statement substrate (graph_ir's L1) — Jena-protobuf-shaped
+# Term / Triple / Quad / Literal / PrefixDecl / RdfStatement. Schema-only: a
+# `proto_library` that consumers wrap in their own java_proto_library / etc.
+# A stream of RdfStatement converts mechanically into a Jena Model and
+# round-trips through the `rdfprotobuf` serialization rules_rdf already speaks.
+proto_library(
+    name = "statement_proto",
+    srcs = ["statement.proto"],
+)
+
+# Namespace/import extractor used by the rdf_namespace_aspect. Stdlib
+# only; consumers register their own python toolchain (same posture as
+# the rdf_plugin_contract_test driver).
+py_binary(
+    name = "ns_tool",
+    srcs = ["ns_tool.py"],
+    main = "ns_tool.py",
+    visibility = ["//visibility:public"],
+)
+
+# One toolchain type per RDF operation. Plugins implement and
+# register the binary backing each type independently — a consumer
+# can mix rules_jena's SPARQL engine with another vendor's
+# validator, etc.
+toolchain_type(name = "sparql_engine_toolchain_type")
+toolchain_type(name = "rdf_validator_toolchain_type")
+toolchain_type(name = "rdf_serializer_toolchain_type")
+toolchain_type(name = "rdf_reasoner_toolchain_type")
+
+# Stardoc / bzl_library plumbing for the public API surface.
+bzl_library(
+    name = "providers",
+    srcs = ["providers.bzl"],
+)
+
+bzl_library(
+    name = "toolchains",
+    srcs = ["toolchains.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(
+    name = "dataset",
+    srcs = ["dataset.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(
+    name = "merge",
+    srcs = ["merge.bzl"],
+)
+
+bzl_library(
+    name = "contract_test",
+    srcs = ["contract_test.bzl"],
+)
+
+bzl_library(
+    name = "repositories",
+    srcs = ["repositories.bzl"],
+)
+
+bzl_library(
+    name = "extensions",
+    srcs = ["extensions.bzl"],
+    deps = [":repositories"],
+)
+
+bzl_library(
+    name = "aspects",
+    srcs = ["aspects.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(
+    name = "namespace",
+    srcs = ["namespace.bzl"],
+    deps = [
+        ":aspects",
+        ":providers",
+    ],
+)
+
+exports_files([
+    "plugin_contract.md",
+    "repositories.bzl",
+    "extensions.bzl",
+    "aspects.bzl",
+    "namespace.bzl",
+])

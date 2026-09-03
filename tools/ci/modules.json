@@ -1,0 +1,21 @@
+{
+  "_comment": "Optional per-module CI overrides. Default bazel command is 'test //... --test_output=errors'. Exit 4 falls back to build //.... Source HEAD of some first-cluster modules cannot analyze or pass every target the original ci.yml asked for; overrides stay in this file so we do not rewrite imported MODULE.bazel / docs.",
+  "rules_github": {
+    "bazel": "build //..."
+  },
+  "rules_jena": {
+    "bazel": "test //jena/... --test_output=errors"
+  },
+  "rules_ci": {
+    "bazel": "",
+    "extra": [
+      {
+        "cmd": "cargo test --workspace",
+        "workdir": "translator"
+      }
+    ]
+  },
+  "rules_tomato": {
+    "noworkspace_rc": true
+  }
+}

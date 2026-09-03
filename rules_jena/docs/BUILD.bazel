@@ -1,0 +1,46 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_jsonschema//util:write_source_files.bzl", "write_source_files")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+package(default_visibility = ["//visibility:public"])
+
+# Reference docs are stardoc-generated AND committed to source. The
+# diff_test gates assert the committed file matches what stardoc
+# produces from the .bzl docstrings; CI fails if someone changes a
+# rule without running `bazel run //docs:update`.
+
+_DOC_FILES = [
+    ("defs", "//jena:defs.bzl", "//jena:defs"),
+    ("providers", "//jena:providers.bzl", "//jena:providers"),
+    ("model", "//jena:model.bzl", "//jena:model"),
+    ("dataset", "//jena:dataset.bzl", "//jena:dataset"),
+    ("rules", "//jena:rules.bzl", "//jena:rules"),
+    ("reasoner", "//jena:reasoner.bzl", "//jena:reasoner"),
+]
+
+[
+    stardoc(
+        name = name + "_doc",
+        out = name + ".md.generated",
+        input = src,
+        deps = [dep],
+    )
+    for name, src, dep in _DOC_FILES
+]
+
+[
+    diff_test(
+        name = name + "_doc_up_to_date",
+        file1 = name + ".md",
+        file2 = ":" + name + "_doc",
+    )
+    for name, _, _ in _DOC_FILES
+]
+
+write_source_files(
+    name = "update",
+    files = {
+        name + ".md": ":" + name + "_doc"
+        for name, _, _ in _DOC_FILES
+    },
+)
