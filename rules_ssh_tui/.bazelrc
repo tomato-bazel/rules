@@ -1,0 +1,4 @@
+# Needed so the `crate.from_cargo(isolate=True)` extension in
+# MODULE.bazel can produce a namespaced @ssh_tui_crates repo without
+# colliding with downstream modules' own @crates universes.
+common --experimental_isolated_extension_usages

@@ -1,0 +1,12 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["MODULE.bazel"])
+
+# Re-export the base image we pulled in MODULE.bazel so the
+# `ssh_tui_image` macro can reference `@rules_ssh_tui//:base_image`
+# from a consumer's BUILD.bazel — the consumer's main repo doesn't
+# see our private `@ssh_tui_distroless_cc` repo directly.
+alias(
+    name = "base_image",
+    actual = "@ssh_tui_distroless_cc",
+)

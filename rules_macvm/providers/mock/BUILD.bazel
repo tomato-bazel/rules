@@ -1,0 +1,25 @@
+load("@rules_macvm//vm:toolchains.bzl", "vm_provider")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# In-repo fake VMM used by tests. Not fetched, not registered as a
+# default toolchain — selected per-target via `vm(provider = ...)`.
+sh_binary(
+    name = "mock_vmm",
+    srcs = ["mock_vmm.sh"],
+)
+
+# Advertises every capability so capability validation never blocks a
+# test VM regardless of which features it exercises.
+vm_provider(
+    name = "mock_provider",
+    efi_boot = True,
+    kind = "mock",
+    linux_boot = True,
+    nested = True,
+    rosetta = True,
+    virtiofs = True,
+    vmm = ":mock_vmm",
+    vsock = True,
+)

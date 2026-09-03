@@ -1,0 +1,28 @@
+[package]
+name = "ssh-tui-server"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "russh-based SSH server that spawns a configured login binary under a PTY."
+
+[[bin]]
+name = "ssh-tui-server"
+path = "src/main.rs"
+
+[dependencies]
+russh.workspace = true
+russh-keys.workspace = true
+tokio.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rand.workspace = true
+async-trait.workspace = true
+portable-pty.workspace = true
+bytes.workspace = true
+# GitHub pubkey fetch (--github-users <user>,…)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }

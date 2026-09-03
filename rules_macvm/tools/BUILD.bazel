@@ -1,0 +1,5 @@
+package(default_visibility = ["//visibility:public"])
+
+# Stdlib-only; run with `python3 tools/refresh_versions.py` (no
+# rules_python dep on purpose).
+exports_files(["refresh_versions.py"])
