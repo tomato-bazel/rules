@@ -1,0 +1,534 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_cloudformation//cloudformation:condition.bzl", "cloudformation_condition")
+load(
+    "@rules_cloudformation//cloudformation:defs.bzl",
+    "cloudformation_aws_ec2_instance",
+    "cloudformation_aws_ec2_internet_gateway",
+    "cloudformation_aws_ec2_route",
+    "cloudformation_aws_ec2_route_table",
+    "cloudformation_aws_ec2_vpc",
+    "cloudformation_aws_ec2_vpcgateway_attachment",
+    "cloudformation_aws_ecr_repository",
+    "cloudformation_aws_route53_hosted_zone",
+    "cloudformation_aws_s3_bucket",
+    "cloudformation_aws_s3_bucket_policy",
+)
+load(
+    "@rules_cloudformation//cloudformation:deploy.bzl",
+    "cloudformation_down",
+    "cloudformation_up",
+)
+load(
+    "@rules_cloudformation//cloudformation:intrinsics.bzl",
+    "cloudformation_aws_cloudformation_init",
+    "cloudformation_aws_cloudformation_interface",
+)
+load("@rules_cloudformation//cloudformation:mapping.bzl", "cloudformation_mapping")
+load("@rules_cloudformation//cloudformation:output.bzl", "cloudformation_output")
+load("@rules_cloudformation//cloudformation:parameter.bzl", "cloudformation_parameter")
+load(
+    "@rules_cloudformation//cloudformation:stack.bzl",
+    "cfn_equals",
+    "cfn_find_in_map",
+    "cfn_getatt",
+    "cfn_if",
+    "cfn_join",
+    "cfn_ref",
+    "cloudformation_stack",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+# Declare an S3 bucket via the schema-derived typed rule. The rule
+# enforces every property's JSON Schema type at Bazel-loading time
+# — pass an integer to BucketName and the load fails with a clear
+# error. The output is a JSON shard the consumer's stack-aggregator
+# rule would pick up.
+cloudformation_aws_s3_bucket(
+    name = "smoke_bucket",
+    BucketName = "smoke-bucket",
+    VersioningConfiguration = '{"Status": "Enabled"}',
+    # Per-kind item-name attr. v0.3 namespaces this with the full
+    # AWS_Service_Resource id (was `bucket_name` in v0.2 when kinds
+    # were hand-enumerated with a short tag).
+    aws_s3_bucket_name = "smoke-bucket",
+)
+
+# Lock down the shard's bytes so a regression in the schema codegen
+# (e.g. an attr renamed, dropped, or stringified differently) shows
+# up as a Bazel test failure.
+diff_test(
+    name = "smoke_bucket_shard_stable",
+    file1 = "expected_smoke_bucket.json",
+    file2 = ":smoke_bucket",
+)
+
+# AWS::CloudFormation::Init — a config-set tree attached to an
+# EC2-like resource's `Metadata`. Hand-authored rule (lives outside
+# the Resource Spec).
+cloudformation_aws_cloudformation_init(
+    name = "smoke_init",
+    config_sets = '{"default": ["install", "config"]}',
+    configs = json.encode({
+        "install": {
+            "packages": {"yum": {"httpd": []}},
+        },
+        "config": {
+            "files": {
+                "/etc/httpd/conf.d/site.conf": {
+                    "content": "ServerName localhost\n",
+                    "mode": "000644",
+                },
+            },
+        },
+    }),
+    target_resource_name = "WebServer",
+)
+
+diff_test(
+    name = "smoke_init_shard_stable",
+    file1 = "expected_smoke_init.json",
+    file2 = ":smoke_init",
+)
+
+# AWS::CloudFormation::Interface — top-level template metadata that
+# groups Parameters for the AWS console UI.
+cloudformation_aws_cloudformation_interface(
+    name = "smoke_interface",
+    parameter_groups = json.encode([
+        {
+            "Label": {"default": "Network"},
+            "Parameters": [
+                "VpcId",
+                "SubnetIds",
+            ],
+        },
+    ]),
+    parameter_labels = '{"VpcId": {"default": "Which VPC?"}}',
+)
+
+diff_test(
+    name = "smoke_interface_shard_stable",
+    file1 = "expected_smoke_interface.json",
+    file2 = ":smoke_interface",
+)
+
+# ---- cloudformation_stack: aggregate shards into a CFN template ----
+# PascalCase target names because the v0.4 aggregator uses
+# label.name as the CFN logical id (which must be alphanumeric).
+
+cloudformation_aws_s3_bucket(
+    name = "SmokeBucket",
+    BucketName = "smoke-bucket",
+    aws_s3_bucket_name = "smoke-bucket",
+)
+
+cloudformation_aws_ec2_instance(
+    name = "WebServer",
+    ImageId = "ami-0abcdef1234567890",
+    InstanceType = "t3.micro",
+    aws_ec2_instance_name = "web-server",
+)
+
+cloudformation_aws_cloudformation_init(
+    name = "WebServerInit",
+    config_sets = '{"default": ["install"]}',
+    configs = json.encode({
+        "install": {"packages": {"yum": {"httpd": []}}},
+    }),
+    target_resource_name = "WebServer",
+)
+
+cloudformation_aws_cloudformation_interface(
+    name = "StackInterface",
+    parameter_groups = json.encode([
+        {
+            "Label": {"default": "Compute"},
+            "Parameters": ["InstanceType"],
+        },
+    ]),
+)
+
+cloudformation_aws_s3_bucket_policy(
+    name = "SmokeBucketPolicy",
+    Bucket = cfn_ref("SmokeBucket"),
+    PolicyDocument = json.encode({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": cfn_getatt("SmokeBucket", "Arn"),
+        }],
+    }),
+)
+
+cloudformation_stack(
+    name = "smoke_stack",
+    description = "Smoke stack: one bucket + bucket policy with refs + one EC2 with cfn-init metadata + a parameter-group block.",
+    intrinsics = [
+        ":WebServerInit",
+        ":StackInterface",
+    ],
+    resources = [
+        ":SmokeBucket",
+        ":SmokeBucketPolicy",
+        ":WebServer",
+    ],
+)
+
+diff_test(
+    name = "smoke_stack_template_stable",
+    file1 = "expected_smoke_stack.json",
+    file2 = ":smoke_stack",
+)
+
+# Deploy wrappers — `bazel run` ready. We don't invoke them in CI
+# (no real AWS calls), but `bazel build` exercises the toolchain
+# resolution + launcher-script generation, which is the surface
+# the rules own.
+
+cloudformation_up(
+    name = "smoke_stack_up",
+    capabilities = ["CAPABILITY_IAM"],
+    region = "us-east-1",
+    stack = ":smoke_stack",
+    stack_name = "rules-cloudformation-smoke",
+)
+
+cloudformation_down(
+    name = "smoke_stack_down",
+    region = "us-east-1",
+    stack_name = "rules-cloudformation-smoke",
+)
+
+# In-place update of an already-deployed stack (no template). Flips just the
+# passed parameters via `--use-previous-template`; the rest stay at their live
+# values. This is the lane studio/web's image deploy rides: bump a container
+# image tag on a stack whose template another repo owns.
+cloudformation_up(
+    name = "image_update_up",
+    capabilities = ["CAPABILITY_NAMED_IAM"],
+    parameter_overrides = {"ContainerImage": "example.dkr.ecr.us-east-1.amazonaws.com/app:abc1234"},
+    region = "us-east-1",
+    stack_name = "rules-cloudformation-smoke",
+    use_previous_template = True,
+)
+
+# Golden test: normalize the generated launcher to just its template-mode flag
+# tokens (stable across runfile paths) and lock the value. Asserts the
+# use-previous-template lane emits `--use-previous-template` and NOT
+# `--template-file`; building the genrule also exercises launcher generation
+# for the templateless code path.
+genrule(
+    name = "image_update_up_flags",
+    srcs = [":image_update_up"],
+    outs = ["image_update_up_flags.txt"],
+    cmd = "grep -oE -- '--(use-previous-template|template-file)' $(location :image_update_up) | sort -u > $@",
+)
+
+diff_test(
+    name = "image_update_up_uses_previous_template",
+    file1 = "expected_image_update_up_flags.txt",
+    file2 = ":image_update_up_flags",
+)
+
+# ---- Conditions + Mappings (0.8.0) ----
+# A parameter-driven Mapping lookup + a Condition gating a resource, plus an
+# `Fn::If` and an `Fn::FindInMap` in properties — exercising the full
+# conditions/mappings/resource_conditions surface end to end.
+
+cloudformation_parameter(
+    name = "Environment",
+    Default = "development",
+    Type = "String",
+)
+
+cloudformation_mapping(
+    name = "EnvConfig",
+    mapping = json.encode({
+        "development": {"RootDomain": "savvifi.dev"},
+        "production": {"RootDomain": "savvifi.com"},
+    }),
+)
+
+cloudformation_condition(
+    name = "IsProd",
+    expression = json.encode(cfn_equals(
+        cfn_ref("Environment"),
+        "production",
+    )),
+)
+
+cloudformation_aws_s3_bucket(
+    name = "EnvBucket",
+    # FindInMap reads the per-environment domain; Fn::If picks versioning by env.
+    BucketName = cfn_find_in_map(
+        "EnvConfig",
+        cfn_ref("Environment"),
+        "RootDomain",
+    ),
+    VersioningConfiguration = json.encode(
+        cfn_if(
+            "IsProd",
+            {"Status": "Enabled"},
+            {"Status": "Suspended"},
+        ),
+    ),
+    aws_s3_bucket_name = "env-bucket",
+)
+
+cloudformation_stack(
+    name = "conditioned_stack",
+    conditions = [":IsProd"],
+    description = "Conditions + Mappings: a per-env bucket gated by IsProd.",
+    mappings = [":EnvConfig"],
+    parameters = [":Environment"],
+    resource_conditions = {"EnvBucket": "IsProd"},
+    resources = [":EnvBucket"],
+)
+
+diff_test(
+    name = "conditioned_stack_template_stable",
+    file1 = "expected_conditioned_stack.json",
+    file2 = ":conditioned_stack",
+)
+
+# ── DependsOn ────────────────────────────────────────────────────────────────
+# The canonical case CFN cannot infer, reproduced exactly: an internet-gateway
+# route. `IgwAttachment` and `PublicDefaultRoute` both merely `Ref` the gateway,
+# so both depend on IT and neither on the OTHER — leaving CFN free to create the
+# route first, which then fails with "The gateway ID 'igw-…' does not exist or is
+# not attached". AWS documents the DependsOn as required here.
+#
+# Being a race, it can pass once and fail on the next rebuild, so the guard is a
+# byte-stable template rather than a deploy that happened to work.
+cloudformation_aws_ec2_vpc(
+    name = "SmokeVpc",
+    CidrBlock = "10.9.0.0/16",
+    aws_ec2_vpc_name = "SmokeVpc",
+)
+
+cloudformation_aws_ec2_internet_gateway(
+    name = "SmokeIgw",
+    aws_ec2_internet_gateway_name = "SmokeIgw",
+)
+
+cloudformation_aws_ec2_vpcgateway_attachment(
+    name = "SmokeIgwAttachment",
+    InternetGatewayId = cfn_ref("SmokeIgw"),
+    VpcId = cfn_ref("SmokeVpc"),
+    aws_ec2_vpcgateway_attachment_name = "SmokeIgwAttachment",
+)
+
+cloudformation_aws_ec2_route_table(
+    name = "SmokeRt",
+    VpcId = cfn_ref("SmokeVpc"),
+    aws_ec2_route_table_name = "SmokeRt",
+)
+
+cloudformation_aws_ec2_route(
+    name = "SmokeDefaultRoute",
+    DestinationCidrBlock = "0.0.0.0/0",
+    GatewayId = cfn_ref("SmokeIgw"),
+    RouteTableId = cfn_ref("SmokeRt"),
+    aws_ec2_route_name = "SmokeDefaultRoute",
+)
+
+cloudformation_stack(
+    name = "depends_on_stack",
+    description = "DependsOn: an IGW route ordered after the gateway attachment.",
+    # One dependency renders as a bare string; several as a sorted list.
+    resource_depends_on = {"SmokeDefaultRoute": "SmokeIgwAttachment"},
+    resources = [
+        ":SmokeDefaultRoute",
+        ":SmokeIgw",
+        ":SmokeIgwAttachment",
+        ":SmokeRt",
+        ":SmokeVpc",
+    ],
+)
+
+diff_test(
+    name = "depends_on_stack_template_stable",
+    file1 = "expected_depends_on_stack.json",
+    file2 = ":depends_on_stack",
+)
+
+# ── Fn::Join ─────────────────────────────────────────────────────────────────
+# The motivating case reproduced exactly: `AWS::Route53::HostedZone.NameServers`
+# is a LIST, and a CFN Output `Value` must be a STRING. Emitted bare it builds
+# clean, deploys, and then rolls the stack back with "Template format error:
+# Every Value member must be a string." — naming neither the output nor the
+# attribute. Nothing between here and AWS can catch it, so the guard is a
+# byte-stable rendered template.
+#
+# One stack covering all three shapes:
+#   * form 2 — a single list-valued sentinel, NOT wrapped in a list
+#     (`JoinZoneNameServers`);
+#   * form 1 — an explicit list carrying a nested `cfn_ref` AND a nested
+#     `cfn_find_in_map`, the latter proving Join's record separator does not
+#     shred FindInMap's unit separator (`JoinBucket.BucketName`);
+#   * form 1 with an EMPTY delimiter, the usual shape for assembling an ARN
+#     (`JoinBucketArn`).
+
+cloudformation_parameter(
+    name = "JoinEnvironment",
+    Default = "development",
+    Type = "String",
+)
+
+cloudformation_mapping(
+    name = "JoinEnvConfig",
+    mapping = json.encode({
+        "development": {"RootDomain": "savvifi-dev"},
+        "production": {"RootDomain": "savvifi-com"},
+    }),
+)
+
+cloudformation_aws_route53_hosted_zone(
+    name = "JoinZone",
+    Name = "smoke.example.com",
+    aws_route53_hosted_zone_name = "JoinZone",
+)
+
+cloudformation_aws_s3_bucket(
+    name = "JoinBucket",
+    # Form 1: a list whose members are a Ref, a literal, and a FindInMap that
+    # is itself a nested sentinel.
+    BucketName = cfn_join(
+        "-",
+        [
+            cfn_ref("JoinEnvironment"),
+            "smoke",
+            cfn_find_in_map(
+                "JoinEnvConfig",
+                cfn_ref("JoinEnvironment"),
+                "RootDomain",
+            ),
+        ],
+    ),
+    aws_s3_bucket_name = "JoinBucket",
+)
+
+# Form 2. The whole point: `cfn_getatt(...)` passed as a bare sentinel, not as
+# `[cfn_getatt(...)]` — which would render a one-element list containing a
+# list, and fail exactly as the unjoined GetAtt does.
+cloudformation_output(
+    name = "JoinZoneNameServers",
+    Description = "Nameservers to delegate to from the parent zone.",
+    Value = cfn_join(
+        ",",
+        cfn_getatt("JoinZone", "NameServers"),
+    ),
+)
+
+# Form 1 with an empty delimiter — a literal prefix glued to a Ref.
+cloudformation_output(
+    name = "JoinBucketArn",
+    Description = "Bucket ARN assembled from a literal prefix and a Ref.",
+    Value = cfn_join(
+        "",
+        [
+            "arn:aws:s3:::",
+            cfn_ref("JoinBucket"),
+        ],
+    ),
+)
+
+cloudformation_stack(
+    name = "join_stack",
+    description = "Fn::Join: a list-valued GetAtt in an Output, plus list-form joins with nested sentinels.",
+    mappings = [":JoinEnvConfig"],
+    outputs = [
+        ":JoinBucketArn",
+        ":JoinZoneNameServers",
+    ],
+    parameters = [":JoinEnvironment"],
+    resources = [
+        ":JoinBucket",
+        ":JoinZone",
+    ],
+)
+
+diff_test(
+    name = "join_stack_template_stable",
+    file1 = "expected_join_stack.json",
+    file2 = ":join_stack",
+)
+
+# ─── DeletionPolicy / UpdateReplacePolicy ────────────────────────────────────
+#
+# ⛔ THE GOLDEN FILE IS THE ASSERTION THAT MATTERS, and what it asserts is the NESTING.
+# Both keys must be SIBLINGS of `Properties`, never inside it. Nested one level too deep
+# a template still passes `validate-template` and then fails at deploy with an
+# unrecognised property — so a test that only checked "the key is present somewhere"
+# would pass while shipping a broken template.
+#
+# Two reasons this attribute exists, both real:
+#   1. CloudFormation REQUIRES DeletionPolicy on every resource in a
+#      `--change-set-type IMPORT`. Without it a stack can never adopt existing resources.
+#   2. Retain is what stops a stack delete taking a registry or data store with it.
+#      Measured on a live stack in this estate: 0 of 14 ECR repositories had one.
+cloudformation_aws_ecr_repository(
+    name = "SmokeKeptRepo",
+    RepositoryName = "smoke/kept",
+    aws_ecr_repository_name = "SmokeKeptRepo",
+)
+
+cloudformation_aws_ecr_repository(
+    name = "SmokeDefaultRepo",
+    RepositoryName = "smoke/default",
+    aws_ecr_repository_name = "SmokeDefaultRepo",
+)
+
+# ⛔ THE REGRESSION TEST FOR #2: a top-level property explicitly set to `false` must
+# RENDER, not vanish. It vanished until rules_jsonschema 0.4.0, because the generated
+# impl ran the payload through `strip_empty`, which dropped `False` alongside `None`.
+#
+# That is not cosmetic. When the schema's own default is truthy the omission means the
+# OPPOSITE of what was written and it fails OPEN —
+# `AWS::EKS::Cluster.ResourcesVpcConfig.EndpointPublicAccess` defaults **true**, so
+# "private endpoint only" is exactly this shape. ECR's `EmptyOnDelete` is the case that
+# was measured; it is used here because it is cheap, not because it is the dangerous one.
+#
+# ⚠ Asserted through the RENDERED TEMPLATE (the golden below), not by reading the
+# Starlark. Reading the Starlark is precisely what the bug defeated.
+cloudformation_aws_ecr_repository(
+    name = "SmokeFalseRepo",
+    EmptyOnDelete = "false",
+    RepositoryName = "smoke/false",
+    aws_ecr_repository_name = "SmokeFalseRepo",
+)
+
+cloudformation_stack(
+    name = "falsy_stack",
+    description = "A top-level property set to false renders as false, not as absent.",
+    resources = [":SmokeFalseRepo"],
+)
+
+diff_test(
+    name = "falsy_stack_template_stable",
+    file1 = "expected_falsy_stack.json",
+    file2 = ":falsy_stack",
+)
+
+cloudformation_stack(
+    name = "retention_stack",
+    description = "DeletionPolicy/UpdateReplacePolicy render beside Properties, and only where asked.",
+    # ⚠ SmokeDefaultRepo is deliberately absent from both dicts. Unset must mean ABSENT
+    # from the rendered resource — matching CFN's own default (Delete) rather than this
+    # rule's opinion — so existing stacks that do not opt in render byte-identically.
+    resource_deletion_policies = {"SmokeKeptRepo": "Retain"},
+    resource_update_replace_policies = {"SmokeKeptRepo": "Retain"},
+    resources = [
+        ":SmokeDefaultRepo",
+        ":SmokeKeptRepo",
+    ],
+)
+
+diff_test(
+    name = "retention_stack_template_stable",
+    file1 = "expected_retention_stack.json",
+    file2 = ":retention_stack",
+)

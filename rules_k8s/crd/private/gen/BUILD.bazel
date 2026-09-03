@@ -1,0 +1,37 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+# gazelle:ignore
+
+go_library(
+    name = "gen_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/tomato-bazel/rules_k8s/crd/private/gen",
+    visibility = ["//visibility:private"],
+    deps = [
+        "@io_k8s_sigs_controller_tools//pkg/crd",
+        "@io_k8s_sigs_controller_tools//pkg/genall",
+        "@io_k8s_sigs_yaml//:yaml",
+    ],
+)
+
+go_binary(
+    name = "gen",
+    embed = [":gen_lib"],
+    visibility = ["//visibility:public"],
+    # controller-tools stamps `controller-gen.kubebuilder.io/version` into every
+    # CRD it emits, reading it from debug.ReadBuildInfo(). A Bazel-built binary
+    # has no module build info, so without this it stamps "(unknown)" — and every
+    # CRD in the fleet would differ from its committed copy on that one line the
+    # first time anyone adopted this rule.
+    #
+    # controller-tools documents this exact override in pkg/version/version.go:
+    #   -ldflags "-X sigs.k8s.io/controller-tools/pkg/version.version=v1.0.0"
+    #
+    # MUST equal the controller-tools version in //:go.mod. It is the annotation
+    # consumers read to know what generated their schema, so a mismatch here
+    # doesn't fail a build — it writes a lie into every CRD. //examples/smoke's
+    # golden CRD test is what actually holds these two in sync.
+    x_defs = {
+        "sigs.k8s.io/controller-tools/pkg/version.version": "v0.16.5",
+    },
+)

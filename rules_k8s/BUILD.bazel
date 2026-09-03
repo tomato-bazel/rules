@@ -1,0 +1,3 @@
+# rules_k8s — Kubernetes CRDs as build artifacts.
+
+exports_files([".bazelrc"])

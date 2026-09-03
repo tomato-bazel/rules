@@ -54,5 +54,8 @@
   },
   "rules_chrome": {
     "bazel": "test //docs/... --test_output=errors"
+  },
+  "rules_docker_compose": {
+    "bazel": "test //compose/... //examples/... --test_output=errors"
   }
 }

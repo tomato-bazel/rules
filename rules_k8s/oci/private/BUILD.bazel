@@ -1,0 +1,8 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//oci:__pkg__"])
+
+bzl_library(
+    name = "transition",
+    srcs = ["transition.bzl"],
+)

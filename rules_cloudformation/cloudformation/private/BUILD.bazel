@@ -1,0 +1,83 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//cloudformation:__subpackages__"])
+
+bzl_library(
+    name = "extensions",
+    srcs = ["extensions.bzl"],
+)
+
+bzl_library(
+    name = "assemble",
+    srcs = ["assemble.bzl"],
+)
+
+bzl_library(
+    name = "overlay",
+    srcs = ["overlay.bzl"],
+)
+
+# Generates `cloudformation/cfn_types.bzl` (the snake-id → CFN-Type
+# map) from the assembled schema. Re-runs whenever the spec pin
+# moves.
+py_binary(
+    name = "extract_cfn_types",
+    srcs = ["extract_cfn_types.py"],
+    main = "extract_cfn_types.py",
+    visibility = ["//visibility:public"],
+)
+
+# Drives `cloudformation_stack` — reads typed-rule shards + intrinsic
+# shards and writes the merged CFN template.
+py_binary(
+    name = "stack_aggregator",
+    srcs = ["stack_aggregator.py"],
+    main = "stack_aggregator.py",
+    visibility = ["//visibility:public"],
+)
+
+# Layers AWS-endpoint per-resource property descriptions onto the
+# assembler-derived JSON Schemas. Invoked by `cfn_overlay_descriptions`.
+py_binary(
+    name = "overlay_descriptions",
+    srcs = ["overlay_descriptions.py"],
+    main = "overlay_descriptions.py",
+    visibility = ["//visibility:public"],
+)
+
+# Upstream CFN assembler, built from delomboked-and-vendored sources
+# (see assembler_src/ + docs/SCHEMA_SOURCE.md for the rationale).
+# Entry point: `aws.cfn.codegen.json.Main`. The bundled resources
+# (config.yml / Schema.template / Intrinsics.json) ship on the
+# classpath at root so the assembler's `ClassLoader.getResource(...)`
+# calls resolve them.
+java_binary(
+    name = "assembler",
+    srcs = glob(["assembler_src/**/*.java"]),
+    # Upstream source is from 2018-era — its style trips errorprone's
+    # DoubleBraceInitialization (and similar) checks. We don't own
+    # the source, so opt out of errorprone entirely for this binary.
+    javacopts = [
+        "-XepDisableAllChecks",
+    ],
+    main_class = "aws.cfn.codegen.json.Main",
+    resource_strip_prefix = "cloudformation/private/assembler_resources",
+    resources = [
+        "assembler_resources/Intrinsics.json",
+        "assembler_resources/Schema.template",
+        "assembler_resources/config.yml",
+    ],
+    deps = [
+        "@cfn_assembler_maven//:args4j_args4j",
+        "@cfn_assembler_maven//:com_fasterxml_jackson_core_jackson_annotations",
+        "@cfn_assembler_maven//:com_fasterxml_jackson_core_jackson_core",
+        "@cfn_assembler_maven//:com_fasterxml_jackson_core_jackson_databind",
+        "@cfn_assembler_maven//:com_fasterxml_jackson_dataformat_jackson_dataformat_yaml",
+        "@cfn_assembler_maven//:com_github_spullara_mustache_java_compiler",
+        "@cfn_assembler_maven//:com_google_guava_guava",
+        "@cfn_assembler_maven//:org_apache_logging_log4j_log4j_api",
+        "@cfn_assembler_maven//:org_apache_logging_log4j_log4j_core",
+    ],
+)

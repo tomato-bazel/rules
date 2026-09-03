@@ -1,0 +1,9 @@
+bazel-*
+
+# `go build ./...` drops a binary per main package in the repo root. Bazel is the
+# build system here; these are only ever an accident of a local `go build` during
+# iteration, and two of them (2.6MB each) were committed once already.
+/bundle
+/crd2jsonschema
+/driver
+/gen

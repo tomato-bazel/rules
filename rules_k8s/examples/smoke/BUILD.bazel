@@ -1,0 +1,124 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//crd:defs.bzl", "k8s_crd_library")
+load("//k8s:defs.bzl", "k8s_bundle", "k8s_validate")
+
+# The end-to-end proof: kubebuilder markers -> CRD YAML, as a sandboxed action.
+#
+# `bazel build //examples/smoke:crds` must succeed with no Go on PATH, no module
+# cache, and no network. If it ever needs any of those, the ruleset does not work
+# and this target is how you find out.
+#
+# The API package deliberately exercises what a naive driver gets wrong:
+# cross-package types (metav1.Condition), a stdlib-typed field (metav1.Time wraps
+# time.Time — the aspect's Imports map omits stdlib edges), validation markers,
+# and a nested struct.
+k8s_crd_library(
+    name = "crds",
+    group = "smoke.rules-k8s.dev",
+    visibility = ["//visibility:public"],
+    deps = ["//examples/smoke/api/v1:v1"],
+)
+
+# THE test of this whole ruleset.
+#
+# `testdata/expected_widgets.yaml` is not our own output blessed into a file — it
+# is the verbatim output of STOCK `controller-gen v0.16.5` over the same package
+# (`go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.5 crd
+# paths=./examples/smoke/api/v1/...`). So this asserts equivalence with upstream,
+# not self-consistency.
+#
+# That matters because a fleet has its CRDs committed to git and rendered into
+# charts that ArgoCD server-side-applies. If this rule's output drifted from
+# stock by so much as a line, adopting it would rewrite every schema and push
+# the rewrite live. It has already caught one real instance: a Bazel-built binary
+# has no debug.ReadBuildInfo(), so controller-tools stamped
+# `controller-gen.kubebuilder.io/version: (unknown)` until //crd/private/gen's
+# x_defs supplied the version.
+#
+# Regenerate ONLY from stock controller-gen, never from this rule's own output.
+diff_test(
+    name = "crds_match_stock_controller_gen",
+    file1 = "testdata/expected_widgets.yaml",
+    file2 = ":widgets_yaml",
+)
+
+genrule(
+    name = "widgets_yaml",
+    srcs = [":crds"],
+    outs = ["widgets_actual.yaml"],
+    cmd = "cp $(location :crds)/smoke.rules-k8s.dev_widgets.yaml $@",
+)
+
+# The listing rides in an output group so a write_source_files over :crds copies
+# only CRD YAML. Golden-testing it turns "a Kind silently vanished from the CRD
+# set" into a legible one-line failure.
+filegroup(
+    name = "crds_listing",
+    srcs = [":crds"],
+    output_group = "listing",
+)
+
+diff_test(
+    name = "crds_listing_test",
+    file1 = ":crds_listing",
+    file2 = "testdata/expected_listing.txt",
+)
+
+# ── the manifest half: bundle + validate ──────────────────────────────────────
+
+k8s_bundle(
+    name = "manifests",
+    srcs = glob(["manifests/*.yaml"]),
+    # `deps` contributes SCHEMAS, not manifests: the bundle holds the Widget,
+    # and k8s_validate resolves its schema from the CRD without a hand-written list.
+    deps = [":crds"],
+)
+
+# Proves the whole chain: Go markers -> CRD (hermetic action) -> JSON Schema ->
+# kubeconform -> a CR checked against a schema generated in the same build. The
+# ConfigMap alongside the Widget proves core and custom schemas resolve together.
+k8s_validate(
+    name = "manifests_valid",
+    bundle = ":manifests",
+    # block-network is the assertion, not a precaution: kubeconform's own
+    # "default" schema location is a raw GitHub URL, so it would be very easy to
+    # ship a validate that silently fetches schemas at build time and dies on
+    # RBE. If this rule ever regains a network dep, this test fails here first.
+    tags = ["block-network"],
+)
+
+filegroup(
+    name = "manifests_listing",
+    srcs = [":manifests"],
+    output_group = "listing",
+)
+
+diff_test(
+    name = "manifests_listing_test",
+    file1 = ":manifests_listing",
+    file2 = "testdata/expected_manifests_listing.txt",
+)
+
+# A validator that only ever passes is not a test. This bundle holds a Widget
+# with replicas=1000 (marker says Maximum=99) and mode=Sideways (not in the
+# Enum); //examples/smoke:validate_rejects_bad_test asserts k8s_validate FAILS on
+# it. Not a k8s_validate target itself — it is expected to fail.
+k8s_bundle(
+    name = "badmanifests",
+    srcs = glob(["badmanifests/*.yaml"]),
+    deps = [":crds"],
+)
+
+k8s_validate(
+    name = "badmanifests_valid",
+    bundle = ":badmanifests",
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "validate_rejects_bad_test",
+    srcs = ["validate_rejects_bad.sh"],
+    data = [":badmanifests_valid"],
+    env = {"VALIDATOR": "$(rootpath :badmanifests_valid)"},
+)

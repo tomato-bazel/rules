@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs when a new commit lands on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: bazel test //...
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+      - run: bazel test //... --test_output=errors
+
+  linux-engine:
+    name: linux daemonless engine smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-linux-engine
+          repository-cache: true
+      # Boots the daemonless engine end-to-end: `podman info` initializes
+      # the runtime, which probes conmon + the OCI runtime and fails with
+      # "could not find a working conmon binary" if the launcher's
+      # conmon_path/runtime wiring is wrong. `bazel run` (not `test`) keeps
+      # it out of the sandbox, whose nested-userns support is host-dependent.
+      # Rootless podman re-execs itself into a user namespace. ubuntu-latest is
+      # now 24.04, which ships kernel.apparmor_restrict_unprivileged_userns=1 —
+      # AppArmor blocks unprivileged userns for binaries without a profile, and
+      # podman fails with the distinctly unhelpful:
+      #
+      #     failed to reexec: Permission denied
+      #
+      # That message names neither userns nor AppArmor, which is why this job
+      # read as a podman-wiring problem rather than a runner-policy one.
+      #
+      # Relaxed rather than given an AppArmor profile: the profile would have to
+      # cover the fetched podman binary at its Bazel-managed path, which changes
+      # with the toolchain. `|| true` because the knob does not exist on older
+      # images, where userns already works and its absence is not a failure.
+      - name: allow unprivileged user namespaces (rootless podman needs them)
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          echo "unprivileged_userns_clone=$(cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null || echo n/a)"
+          echo "apparmor_restrict=$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo n/a)"
+          # Prove a userns can actually be created before blaming podman for it.
+          unshare --user --map-root-user true \
+            && echo "userns: OK" \
+            || echo "::warning::userns still unavailable — the smoke run below will fail at reexec"
+
+      - run: bazel run //examples/smoke:daemonless
+
+  buildifier:
+    name: buildifier lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install buildifier
+        run: |
+          curl -fsSL -o /usr/local/bin/buildifier \
+            https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
+          chmod +x /usr/local/bin/buildifier
+      - run: buildifier --mode=check --lint=warn -r .

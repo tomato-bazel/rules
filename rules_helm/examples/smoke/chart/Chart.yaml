@@ -1,0 +1,6 @@
+apiVersion: v2
+name: smoke
+description: Minimal chart exercising helm_chart / helm_lint / helm_push.
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
