@@ -1,0 +1,14 @@
+# The Rust CI-IR translator (gitlab↔github↔bazel). The per-crate rust_library/rust_binary
+# targets live in each crate's own package (translator/{ci-ir,gitlab-parse,aggregator}/BUILD.bazel)
+# — required so the crate_universe `from_cargo` manifest labels (//translator/<crate>:Cargo.toml)
+# resolve. This package only exports the workspace root manifest + lockfile.
+#
+# v0.0.1 ships ci-ir (IR types + structural validate), gitlab-parse (YAML → IR), and the
+# aggregator binary (multi-member fleet report). github-parse / *-emit crates land per docs/DESIGN.md.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Cargo.toml",
+    "Cargo.lock",
+])
