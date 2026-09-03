@@ -172,14 +172,16 @@ uses a bare `cc_binary` that Bazel 9 will not load);
 default (no tests; exit 4 → `bazel build //...`). Source
 `rules_cc_cross` / `rules_cc_host` / `rules_beam` CI is the broken
 cross-org reusable workflow; `rules_meson` has no source CI.
-Cluster 7: `rules_bibtex` / `rules_graphviz` / `rules_huggingface` /
-`rules_lora` / `rules_puml` / `rules_tectonic` / `rules_tla` default
-`bazel test //...`; `rules_tap` default (no tests; exit 4 →
-`bazel build //...`). Source `rules_bibtex` / `rules_huggingface` /
+Cluster 7: `rules_huggingface` / `rules_tla` default `bazel test //...`;
+`rules_bibtex` / `rules_puml` / `rules_tap` default (no tests; exit 4 →
+`bazel build //...`); `rules_graphviz` `build //graphviz/...`
+(`//examples` PDF uses a bundled `svg2pdf` that hardcodes a missing
+pdfkit AFM path); `rules_tectonic` `build //tectonic/...` (examples
+write tectonic's HOME cache in a read-only sandbox); `rules_lora`
+no bazel (`rules_runpod` 0.0.11 fetch 404s; MODULE.bazel is kept
+as-is from source). Source `rules_bibtex` / `rules_huggingface` /
 `rules_puml` CI is the broken cross-org reusable workflow;
 `rules_graphviz` / `rules_lora` / `rules_tectonic` have no source CI.
-`rules_lora` still declares `bazel_dep` on excluded fastverk-org
-`rules_runpod` 0.0.11; MODULE.bazel is kept as-is from source.
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
