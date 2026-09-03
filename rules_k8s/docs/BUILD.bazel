@@ -1,0 +1,71 @@
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+package(default_visibility = ["//visibility:public"])
+
+# Reference docs are stardoc-generated AND committed, refreshed by
+# `bazel run //docs:update` — the same generated-committed-gated shape this module
+# argues for everywhere else.
+#
+# TWO GAPS, both blocked upstream by visibility on someone else's PRIVATE module.
+# stardoc needs a bzl_library for every TRANSITIVELY loaded module, and a file you
+# cannot see is a file you cannot wrap.
+#
+# 1. //crd:defs.bzl — //crd/private/crd_library.bzl loads
+#    @rules_go//go/tools/gopackagesdriver:aspect.bzl. rules_go neither wraps it in
+#    a bzl_library nor exports it:
+#
+#      bzl_library(srcs = ["@rules_go//go/tools/gopackagesdriver:aspect.bzl"])
+#      ERROR: in bzl_library rule //docs:probe: Visibility error
+#
+#    Vendoring the aspect does not help: it reads GoStdLib, which
+#    @rules_go//go:def.bzl does not export, and providers are IDENTITY-based — a
+#    copied definition is a different provider, so a vendored aspect could not
+#    read `target[GoStdLib]` off a rules_go target.
+#
+# 2. //oci:defs.bzl — loads @rules_pkg//pkg:tar.bzl, which is public, but whose
+#    own loads reach @rules_pkg//pkg/private:util.bzl. rules_pkg exports that only
+#    to its own packages:
+#
+#      exports_files(glob(["*.bzl"]), visibility = [
+#          "//distro:__pkg__", "//doc_build:__pkg__", "//pkg:__pkg__"])
+#
+#    (@rules_oci//oci:defs DOES ship a bzl_library — rules_oci is not the problem.)
+#    Switching pkg_tar to @aspect_bazel_lib//lib:tar.bzl would dodge this, since
+#    that one is wrapped — but rewriting working, tested layer construction to
+#    document it is the tail wagging the dog. Revisit if the tar is changed for a
+#    real reason.
+#
+# Both rules stay documented in the README and in their own docstrings; only the
+# GENERATED reference page is missing. Fixing either means an upstream change.
+
+stardoc(
+    name = "crd_providers_gen",
+    out = "crd_providers_gen.md",
+    input = "//crd:providers.bzl",
+    deps = ["//crd:providers"],
+)
+
+stardoc(
+    name = "crd_toolchains_gen",
+    out = "crd_toolchains_gen.md",
+    input = "//crd:toolchains.bzl",
+    deps = ["//crd:toolchains"],
+)
+
+stardoc(
+    name = "k8s_defs_gen",
+    out = "k8s_defs_gen.md",
+    input = "//k8s:defs.bzl",
+    deps = ["//k8s:defs"],
+)
+
+write_source_files(
+    name = "update",
+    files = {
+        "crd_providers.md": ":crd_providers_gen",
+        "crd_toolchains.md": ":crd_toolchains_gen",
+        "k8s_defs.md": ":k8s_defs_gen",
+    },
+)

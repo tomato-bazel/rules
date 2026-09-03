@@ -1,0 +1,27 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("//validate:toolchains.bzl", "kubeconform_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "toolchains.bzl",
+    "repositories.bzl",
+])
+
+toolchain_type(name = "toolchain_type")
+
+kubeconform_toolchain(
+    name = "default_kubeconform_toolchain_impl",
+    kubeconform = "@kubeconform//:kubeconform",
+)
+
+toolchain(
+    name = "default_kubeconform_toolchain",
+    toolchain = ":default_kubeconform_toolchain_impl",
+    toolchain_type = ":toolchain_type",
+)
+
+bzl_library(
+    name = "toolchains",
+    srcs = ["toolchains.bzl"],
+)

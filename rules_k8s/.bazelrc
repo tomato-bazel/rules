@@ -1,0 +1,29 @@
+# The org registry chain (rules_k8s itself is published here).
+common --registry=https://registry.fastverk.com/
+common --registry=https://bcr.bazel.build/
+
+# Register the CRD codegen toolchain for rules_k8s's OWN build — its tests and
+# //examples/smoke need it.
+#
+# This lives here and NOT in MODULE.bazel on purpose. register_toolchains() in
+# MODULE.bazel propagates to every consumer, which would force a Go SDK into the
+# consumers that only ever READ CRD schemas.
+# Consumers that actually run controller-gen put this same line in their own
+# .bazelrc. rules_openapi documents the same rule for the same reason.
+common --extra_toolchains=@rules_k8s//crd:default_k8s_crd_toolchain
+
+# The CRD action must be sandboxed for real. If it ever passes only because the
+# host has Go and a warm module cache, the whole design is a lie — so don't let
+# a local fallback hide it.
+#
+# Scoped to the mnemonic rather than set as a global --spawn_strategy: rules_oci's
+# CopyToDirectory cannot run sandboxed, and a global setting would break every
+# image build to assert a property of one action.
+build --strategy=K8sCrdGen=sandboxed
+
+test --test_output=errors
+
+# kubeconform (k8s_validate) and kubectl (k8s_diff). Same reasoning as the CRD
+# toolchain above: .bazelrc, not register_toolchains() in MODULE.bazel.
+common --extra_toolchains=@rules_k8s//validate:default_kubeconform_toolchain
+common --extra_toolchains=@rules_k8s//kubectl:default_kubectl_toolchain

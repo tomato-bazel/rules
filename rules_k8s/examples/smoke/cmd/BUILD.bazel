@@ -1,0 +1,43 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_python//python:defs.bzl", "py_test")
+load("//oci:defs.bzl", "k8s_operator_image")
+
+# gazelle:ignore
+
+go_library(
+    name = "cmd_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/tomato-bazel/rules_k8s/examples/smoke/cmd",
+)
+
+# A PLAIN go_binary. Note what is absent: no goos/goarch, no `pure = "on"`, no
+# second cross-compiled target. The fleet's operators each declare a separate
+# `manager_linux_amd64` go_binary beside the real one purely to feed the image;
+# the transition makes that unnecessary.
+go_binary(
+    name = "manager",
+    embed = [":cmd_lib"],
+)
+
+# THE SPIKE. This must build a linux/amd64 image on a macOS host with NO
+# --platforms flag and NO --config, and `:operator-image_push` must ANALYZE —
+# which real repos cannot do today, hence their crane bypass.
+k8s_operator_image(
+    name = "operator-image",
+    binary = ":manager",
+    repository = "example.com/smoke/operator",
+    visibility = ["//visibility:public"],
+)
+
+# The regression guard. A transition that silently stops firing still builds and
+# still pushes — it just ships a host-arch binary that cannot exec in the cluster.
+# Nothing else in the build would catch that.
+py_test(
+    name = "image_is_linux_amd64_test",
+    srcs = ["assert_image.py"],
+    main = "assert_image.py",
+    # The transitioned IMAGE, not the layer target: a direct dep on the layer
+    # resolves in the default configuration and hands back a host-arch binary.
+    data = [":operator-image"],
+    env = {"LAYOUT": "$(rootpath :operator-image)"},
+)

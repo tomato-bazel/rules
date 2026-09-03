@@ -1,0 +1,10 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+# gazelle:ignore
+
+go_library(
+    name = "params",
+    srcs = ["params.go"],
+    importpath = "github.com/tomato-bazel/rules_k8s/internal/params",
+    visibility = ["//:__subpackages__"],
+)

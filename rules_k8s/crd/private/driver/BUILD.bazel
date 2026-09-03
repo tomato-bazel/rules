@@ -1,0 +1,54 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+# gazelle:ignore
+#
+# Most of this package is vendored from rules_go's go/tools/gopackagesdriver,
+# whose go_library is visibility-restricted to its own tests — so it cannot be
+# imported, only copied. We take the half that reads a package graph out of
+# pkg.json files and drop the half that shells out to `bazel query` (bazel.go,
+# bazel_json_builder.go), which is the exact thing that cannot run in an action.
+#
+# Vendored verbatim, Apache-2.0, from rules_go v0.60.0:
+#   flatpackage.go json_packages_driver.go packageregistry.go
+#   driver_request.go build_context.go
+#   version.go   (the bazelVersion value type, extracted from bazel.go)
+#   env.go       (getenvDefault, extracted from utils.go)
+#
+# Ours: main.go, params.go, stdlib.go, driver_test.go
+#
+# When bumping rules_go, re-diff the vendored files against upstream. They are
+# stable (this code has barely moved in years), but a change to FlatPackage's
+# JSON shape would break the contract with the aspect silently.
+
+go_library(
+    name = "driver_lib",
+    srcs = [
+        "build_context.go",
+        "driver_request.go",
+        "env.go",
+        "flatpackage.go",
+        "json_packages_driver.go",
+        "main.go",
+        "packageregistry.go",
+        "params.go",
+        "paths.go",
+        "stdlib.go",
+        "version.go",
+    ],
+    importpath = "github.com/tomato-bazel/rules_k8s/crd/private/driver",
+    visibility = ["//visibility:private"],
+    deps = ["@org_golang_x_tools//go/packages"],
+)
+
+go_binary(
+    name = "driver",
+    embed = [":driver_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "driver_test",
+    srcs = ["driver_test.go"],
+    embed = [":driver_lib"],
+    deps = ["@org_golang_x_tools//go/packages"],
+)
