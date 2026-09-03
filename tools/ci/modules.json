@@ -17,5 +17,14 @@
   },
   "rules_tomato": {
     "noworkspace_rc": true
+  },
+  "rules_markdown": {
+    "bazel": "test //examples/... --test_output=errors"
+  },
+  "rules_mdbook": {
+    "bazel": "test //docs/... //examples/... --test_output=errors"
+  },
+  "rules_readme": {
+    "bazel": "test //examples/... --test_output=errors"
   }
 }

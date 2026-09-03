@@ -40,10 +40,13 @@ One subdirectory per module. Each imported tree keeps the source repo's
 `MODULE.bazel` pins, license, and tests. See [LEDGER.md](LEDGER.md) for which
 modules are in the tree today and which are follow-up imports.
 
-This PR imports a first cooperating cluster (`rules_tomato`, `rules_ci`,
-`rules_github`, `rules_rdf`, `rules_jena`). Remaining public `rules_*` modules
-are listed as unchecked follow-ups in the ledger. Source repos are not deleted
-or archived by this work.
+Cluster 1 is imported (`rules_tomato`, `rules_ci`, `rules_github`,
+`rules_rdf`, `rules_jena`). Cluster 2 adds schema/RDF dependents and the
+docs stack `rules_tomato` already uses: `rules_jsonschema`, `rules_openapi`,
+`rules_aip`, `rules_schema_org`, `rules_xsd`, `rules_markdown`,
+`rules_mdbook`, `rules_readme`. Remaining public `rules_*` modules stay
+unchecked in the ledger. Source repos are not deleted or archived by this
+work.
 
 ## Tags
 
@@ -122,7 +125,9 @@ Per-module commands start from the existing `ci.yml` convention (the
 Overrides live in [`tools/ci/modules.json`](tools/ci/modules.json):
 `rules_ci` matches its source workflow (`cargo test --workspace` in `translator/`, no bazel);
 `rules_jena` runs `//jena/...` (examples/docs on HEAD need a newer `rules_rdf` than the preserved 0.3.0 pin);
-`rules_github` `bazel build //...` (the `//docs` drift test is dirty on HEAD).
+`rules_github` `bazel build //...` (the `//docs` drift test is dirty on HEAD);
+cluster 2 keeps source commands (`rules_markdown` / `rules_readme` `//examples/...`,
+`rules_mdbook` `//docs/... //examples/...`).
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
