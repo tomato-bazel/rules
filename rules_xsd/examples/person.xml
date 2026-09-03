@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<person xmlns="https://example.org/person" id="ada">
+  <name>Ada Lovelace</name>
+</person>
