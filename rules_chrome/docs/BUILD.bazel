@@ -1,0 +1,87 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+package(default_visibility = ["//visibility:public"])
+
+# Reference docs are stardoc-generated *and* committed to source. The
+# diff_test gates assert the committed file matches what stardoc
+# produces from the .bzl docstrings; CI fails if someone changes a rule
+# without running `bazel run //docs:update`.
+
+stardoc(
+    name = "defs_doc",
+    out = "defs.md.generated",
+    input = "//chrome:defs.bzl",
+    deps = ["//chrome:defs_bzl"],
+)
+
+stardoc(
+    name = "extensions_doc",
+    out = "extensions.md.generated",
+    input = "//chrome:extensions.bzl",
+    deps = ["//chrome:extensions_bzl"],
+)
+
+stardoc(
+    name = "toolchains_doc",
+    out = "toolchains.md.generated",
+    input = "//chrome:toolchains.bzl",
+    deps = ["//chrome:toolchains_bzl"],
+)
+
+stardoc(
+    name = "playwright_py_doc",
+    out = "playwright_py.md.generated",
+    input = "//chrome/playwright:py.bzl",
+    deps = ["//chrome/playwright:py_bzl"],
+)
+
+stardoc(
+    name = "playwright_js_doc",
+    out = "playwright_js.md.generated",
+    input = "//chrome/playwright:js.bzl",
+    deps = ["//chrome/playwright:js_bzl"],
+)
+
+diff_test(
+    name = "defs_doc_up_to_date",
+    file1 = "defs.md",
+    file2 = ":defs_doc",
+)
+
+diff_test(
+    name = "extensions_doc_up_to_date",
+    file1 = "extensions.md",
+    file2 = ":extensions_doc",
+)
+
+diff_test(
+    name = "toolchains_doc_up_to_date",
+    file1 = "toolchains.md",
+    file2 = ":toolchains_doc",
+)
+
+diff_test(
+    name = "playwright_py_doc_up_to_date",
+    file1 = "playwright_py.md",
+    file2 = ":playwright_py_doc",
+)
+
+diff_test(
+    name = "playwright_js_doc_up_to_date",
+    file1 = "playwright_js.md",
+    file2 = ":playwright_js_doc",
+)
+
+sh_binary(
+    name = "update",
+    srcs = ["update.sh"],
+    data = [
+        ":defs_doc",
+        ":extensions_doc",
+        ":playwright_js_doc",
+        ":playwright_py_doc",
+        ":toolchains_doc",
+    ],
+)
