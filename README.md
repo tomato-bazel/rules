@@ -51,9 +51,11 @@ stack: `rules_helm`, `rules_k8s`, `rules_cloudformation`,
 `rules_docker_compose`, `rules_gitlab`, `rules_podman`. Cluster 5 adds
 the IDE / Fastverk plugin + language spine: `rules_fastverk_plugin`,
 `rules_agentic_ide`, `rules_vscode`, `rules_lean`, `rules_lang`,
-`rules_postgres`, `rules_uv`. Remaining public `rules_*` modules stay
-unchecked in the ledger. Source repos are not deleted or archived by
-this work.
+`rules_postgres`, `rules_uv`. Cluster 6 adds the native / CC / systems
+stack: `rules_autoconf`, `rules_cc_cross`, `rules_cc_host`,
+`rules_meson`, `rules_systemd`, `rules_beam`, `rules_macvm`,
+`rules_ssh_tui`. Remaining public `rules_*` modules stay unchecked in
+the ledger. Source repos are not deleted or archived by this work.
 
 ## Tags
 
@@ -159,6 +161,13 @@ CI is the broken cross-org reusable workflow);
 `rules_fastverk_plugin` default (no tests; exit 4 → `bazel build //...`);
 `rules_agentic_ide` `//crates/...` (`//...` Jena SPARQL needs Java 17+
 that the imported `rules_jena` 0.3.2 wrapper does not pick up).
+Cluster 6: `rules_autoconf` `//docs/... //examples/...` (source CI);
+`rules_cc_cross` / `rules_cc_host` / `rules_beam` / `rules_meson` /
+`rules_systemd` / `rules_macvm` / `rules_ssh_tui` default
+`bazel test //...` (`rules_cc_host` has no tests; exit 4 →
+`bazel build //...`). Source `rules_cc_cross` / `rules_cc_host` /
+`rules_beam` CI is the broken cross-org reusable workflow;
+`rules_meson` has no source CI.
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
