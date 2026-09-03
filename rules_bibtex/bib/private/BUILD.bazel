@@ -1,0 +1,30 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "lint",
+    srcs = ["lint.py"],
+    main = "lint.py",
+)
+
+py_binary(
+    name = "bib_to_bibitem",
+    srcs = ["bib_to_bibitem.py"],
+    main = "bib_to_bibitem.py",
+)
+
+py_binary(
+    name = "pin_fetch",
+    srcs = [
+        "bib_to_bibitem.py",
+        "pin_fetch.py",
+    ],
+    main = "pin_fetch.py",
+)
+
+py_binary(
+    name = "merge_ttl",
+    srcs = ["merge_ttl.py"],
+    main = "merge_ttl.py",
+)
