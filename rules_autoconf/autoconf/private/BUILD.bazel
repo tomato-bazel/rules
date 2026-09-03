@@ -1,0 +1,17 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+
+package(default_visibility = ["//autoconf:__subpackages__"])
+
+py_binary(
+    name = "probe",
+    srcs = ["probe_compile.py"],
+    main = "probe_compile.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "render",
+    srcs = ["render_config_header.py"],
+    main = "render_config_header.py",
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,24 @@
+/* hello/config.h.in
+ *
+ * Template processed by config_header. Each `#undef VAR` line gets
+ * substituted with `#define VAR <value>` when VAR is in the defines
+ * dict (or set to 1 by a successful probe).
+ */
+
+#ifndef HELLO_CONFIG_H
+#define HELLO_CONFIG_H
+
+/* Package metadata (set via static defines). */
+#undef PACKAGE_NAME
+#undef PACKAGE_VERSION
+
+/* Header probes (set iff the corresponding cc_check_header succeeds). */
+#undef HAVE_STDIO_H
+#undef HAVE_STRING_H
+#undef HAVE_THIS_HEADER_DOES_NOT_EXIST_H
+
+/* Function probes (set iff the corresponding cc_check_function succeeds). */
+#undef HAVE_STRLEN
+#undef HAVE_NONEXISTENT_FUNCTION_42
+
+#endif  /* HELLO_CONFIG_H */
