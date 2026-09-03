@@ -56,7 +56,7 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 | rules_mdbook | imported | [tomato-bazel/rules_mdbook](https://github.com/tomato-bazel/rules_mdbook) | `75ebacc6083f1e2ee0904badcdd5dc173bde5a9d` | rules_mdbook | 0.3.1 | cluster 2 |
 | rules_meson | pending | [tomato-bazel/rules_meson](https://github.com/tomato-bazel/rules_meson) | `51e339cbd57550fdc99985928f46827fe3ce5aba` | rules_meson | 0.0.1 | |
 | rules_nextjs | pending | [tomato-bazel/rules_nextjs](https://github.com/tomato-bazel/rules_nextjs) | `234de738a4400b8ecdc136076cd617a55b5e120a` | rules_nextjs | 0.3.0 | |
-| rules_openapi | imported | [tomato-bazel/rules_openapi](https://github.com/tomato-bazel/rules_openapi) | `00e3f8794dd1924a8f39c76bfa25e1ac6f31d58d` | rules_openapi | 0.4.0 | cluster 2 |
+| rules_openapi | imported | [tomato-bazel/rules_openapi](https://github.com/tomato-bazel/rules_openapi) | `00e3f8794dd1924a8f39c76bfa25e1ac6f31d58d` | rules_openapi | 0.4.0 | cluster 2; HEAD cannot `bazel test` (`go_client_codegen_toolchain_type` still reserved) |
 | rules_podman | pending | [tomato-bazel/rules_podman](https://github.com/tomato-bazel/rules_podman) | `548ff53f9bb1879a735c7b34a361ffe1826d8e8b` | rules_podman | 0.0.2 | |
 | rules_postgres | pending | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `a471dc40cddd8c97e5f170e5e6c6658e85c4d13c` | rules_postgres | 0.12.0 | |
 | rules_puml | pending | [tomato-bazel/rules_puml](https://github.com/tomato-bazel/rules_puml) | `80ed7791f91611fc23baa004cf9e6f92915b7c54` | rules_puml | 0.0.2 | |

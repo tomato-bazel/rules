@@ -26,5 +26,14 @@
   },
   "rules_readme": {
     "bazel": "test //examples/... --test_output=errors"
+  },
+  "rules_openapi": {
+    "bazel": "",
+    "extra": [
+      {
+        "cmd": "go test ./tools/openapi_to_go_client/",
+        "workdir": "."
+      }
+    ]
   }
 }

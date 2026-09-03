@@ -127,7 +127,10 @@ Overrides live in [`tools/ci/modules.json`](tools/ci/modules.json):
 `rules_jena` runs `//jena/...` (examples/docs on HEAD need a newer `rules_rdf` than the preserved 0.3.0 pin);
 `rules_github` `bazel build //...` (the `//docs` drift test is dirty on HEAD);
 cluster 2 keeps source commands (`rules_markdown` / `rules_readme` `//examples/...`,
-`rules_mdbook` `//docs/... //examples/...`).
+`rules_mdbook` `//docs/... //examples/...`);
+`rules_openapi` skips bazel (`register_toolchains("//go:default_go_client_codegen_toolchain")`
+points at a toolchain type still commented out on HEAD) and compiles the
+Go plugin with `go test ./tools/openapi_to_go_client/`.
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
