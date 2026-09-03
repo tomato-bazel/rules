@@ -78,5 +78,14 @@
   },
   "rules_cc_cross": {
     "bazel": "build //cc_cross/..."
+  },
+  "rules_graphviz": {
+    "bazel": "build //graphviz/..."
+  },
+  "rules_lora": {
+    "bazel": ""
+  },
+  "rules_tectonic": {
+    "bazel": "build //tectonic/..."
   }
 }

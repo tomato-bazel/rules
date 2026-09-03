@@ -1,0 +1,3 @@
+user --> dec : NL intent
+dec --> prop : claim
+prop <--> cache

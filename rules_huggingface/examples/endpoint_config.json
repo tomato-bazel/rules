@@ -1,0 +1,16 @@
+{
+  "name": "agora-parser",
+  "type": "protected",
+  "model": {
+    "repository": "fastverk/agora-parser-qwen2.5-1.5b",
+    "framework": "pytorch",
+    "image": {"huggingface": {}}
+  },
+  "compute": {
+    "accelerator": "gpu",
+    "instanceType": "nvidia-l4",
+    "instanceSize": "x1",
+    "scaling": {"minReplica": 0, "maxReplica": 1}
+  },
+  "provider": {"vendor": "aws", "region": "us-east-1"}
+}

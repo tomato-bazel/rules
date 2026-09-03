@@ -29,6 +29,9 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 - Cluster 6: `rules_autoconf`, `rules_cc_cross`, `rules_cc_host`,
   `rules_meson`, `rules_systemd`, `rules_beam`, `rules_macvm`,
   `rules_ssh_tui`.
+- Cluster 7: `rules_bibtex`, `rules_graphviz`, `rules_huggingface`,
+  `rules_lora`, `rules_puml`, `rules_tap`, `rules_tectonic`,
+  `rules_tla`.
 
 ## Includes (public tomato-bazel/rules_*)
 
@@ -39,7 +42,7 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 | rules_astro | imported | [tomato-bazel/rules_astro](https://github.com/tomato-bazel/rules_astro) | `5625f86d3ab123b623264747bf47ba2e92270be0` | rules_astro | 0.0.1 | cluster 3; no LICENSE; HEAD cannot analyze (`aspect_rules_js` 2.1.3 / no `sh_test`) |
 | rules_autoconf | imported | [tomato-bazel/rules_autoconf](https://github.com/tomato-bazel/rules_autoconf) | `82fdab99cf48b50931abc31febe98a8876d9a068` | rules_autoconf | 0.1.0 | cluster 6; source CI is `//docs/... //examples/...` |
 | rules_beam | imported | [tomato-bazel/rules_beam](https://github.com/tomato-bazel/rules_beam) | `eebd9dc18e762e32a8f449ec9d704857ca28ad5f` | rules_beam | 0.0.2 | cluster 6; source CI is the broken cross-org reusable workflow; no test targets |
-| rules_bibtex | pending | [tomato-bazel/rules_bibtex](https://github.com/tomato-bazel/rules_bibtex) | `83cb11ba5ffd0271aeca762f6d1aff0827b987a8` | rules_bibtex | 0.0.6 | |
+| rules_bibtex | imported | [tomato-bazel/rules_bibtex](https://github.com/tomato-bazel/rules_bibtex) | `83cb11ba5ffd0271aeca762f6d1aff0827b987a8` | rules_bibtex | 0.0.6 | cluster 7; still pins `rules_tectonic` 0.2.0; source CI is the broken cross-org reusable workflow; no test targets (exit 4 → `bazel build //...`) |
 | rules_bun | imported | [tomato-bazel/rules_bun](https://github.com/tomato-bazel/rules_bun) | `395372ea3639805131bcc6d63a0be3166c6a3aba` | rules_bun | 0.4.1 | cluster 3; still pins `rules_github` 0.1.1 |
 | rules_cc_cross | imported | [tomato-bazel/rules_cc_cross](https://github.com/tomato-bazel/rules_cc_cross) | `41e338bc4a60b9fa7f4fa68c6f4a812793b82ac6` | rules_cc_cross | 0.1.0 | cluster 6; source CI is the broken cross-org reusable workflow; HEAD cannot analyze `//examples/aarch64_hello` (`cc_binary` needs a load on Bazel 9; vehicle runs `//cc_cross/...`) |
 | rules_cc_host | imported | [tomato-bazel/rules_cc_host](https://github.com/tomato-bazel/rules_cc_host) | `526bf84f6b45bc557518686f363d5e23a4843a3f` | rules_cc_host | 0.1.0 | cluster 6; source CI is the broken cross-org reusable workflow; no test targets |
@@ -51,15 +54,15 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 | rules_fastverk_plugin | imported | [tomato-bazel/rules_fastverk_plugin](https://github.com/tomato-bazel/rules_fastverk_plugin) | `51660e7e8352ba0cc23ad08fe45dae862376f71b` | rules_fastverk_plugin | 0.0.1 | cluster 5; no LICENSE in source; no source CI workflow |
 | rules_github | imported | [tomato-bazel/rules_github](https://github.com/tomato-bazel/rules_github) | `c23109bba2638ff474071878feafd24b7917e12b` | rules_github | 0.1.2 | first cluster |
 | rules_gitlab | imported | [tomato-bazel/rules_gitlab](https://github.com/tomato-bazel/rules_gitlab) | `7e88d1eee76bc3e53afa5236f5f42de90d6bb34f` | rules_gitlab | 0.3.4 | cluster 4; source CI red without registry.tbzl.dev (vehicle.bazelrc supplies it) |
-| rules_graphviz | pending | [tomato-bazel/rules_graphviz](https://github.com/tomato-bazel/rules_graphviz) | `ea2c90c6e37b0f185063ddc3dad8b135a55c54da` | rules_graphviz | 0.2.0 | |
+| rules_graphviz | imported | [tomato-bazel/rules_graphviz](https://github.com/tomato-bazel/rules_graphviz) | `ea2c90c6e37b0f185063ddc3dad8b135a55c54da` | rules_graphviz | 0.2.0 | cluster 7; still pins `rules_bun` 0.2.0; no source CI; HEAD cannot build `//examples` PDF (`svg2pdf.bundle.js` hardcodes a missing pdfkit AFM path; vehicle runs `//graphviz/...`) |
 | rules_helm | imported | [tomato-bazel/rules_helm](https://github.com/tomato-bazel/rules_helm) | `75c9d32bee410616fe5e8998dabd2e84a31f37f4` | rules_helm | 0.2.0 | cluster 4; no source CI workflow |
-| rules_huggingface | pending | [tomato-bazel/rules_huggingface](https://github.com/tomato-bazel/rules_huggingface) | `5a2d56dd82adf71a1f98cf9117e17498610dc5c2` | rules_huggingface | 0.0.4 | |
+| rules_huggingface | imported | [tomato-bazel/rules_huggingface](https://github.com/tomato-bazel/rules_huggingface) | `5a2d56dd82adf71a1f98cf9117e17498610dc5c2` | rules_huggingface | 0.0.4 | cluster 7; still pins `rules_openapi` 0.2.1; source CI is the broken cross-org reusable workflow |
 | rules_jena | imported | [tomato-bazel/rules_jena](https://github.com/tomato-bazel/rules_jena) | `dc0fff487ef5d4084a4ceb1a104e3ef1128e25b1` | rules_jena | 0.3.2 | first cluster |
 | rules_jsonschema | imported | [tomato-bazel/rules_jsonschema](https://github.com/tomato-bazel/rules_jsonschema) | `c707ecd0dd8c6dfd5170038b64317b8d20b54138` | rules_jsonschema | 0.4.0 | cluster 2 |
 | rules_k8s | imported | [tomato-bazel/rules_k8s](https://github.com/tomato-bazel/rules_k8s) | `c42aa0a5b0c3e71a3880e07d33f67f0cb8f2180a` | rules_k8s | 0.0.3 | cluster 4; no source CI workflow |
 | rules_lang | imported | [tomato-bazel/rules_lang](https://github.com/tomato-bazel/rules_lang) | `dd9b9b61b5a4f8e6462d0aa2636b06d4ee03d09b` | rules_lang | 0.5.0 | cluster 5; still pins `rules_lean` 0.5.5; source CI fast gate is `//docs/...` |
 | rules_lean | imported | [tomato-bazel/rules_lean](https://github.com/tomato-bazel/rules_lean) | `e3b343ff799554a1e1a1d158d4a96eac5cdaa3ea` | rules_lean | 0.7.0 | cluster 5; source `main` moved since the pending ledger SHA; HEAD version; registry latest listed 0.6.2; source CI fast gate is `//docs/...` |
-| rules_lora | pending | [tomato-bazel/rules_lora](https://github.com/tomato-bazel/rules_lora) | `b0496fcff29858a0048e839467ebaf63660b3be3` | rules_lora | 0.1.4 | |
+| rules_lora | imported | [tomato-bazel/rules_lora](https://github.com/tomato-bazel/rules_lora) | `b0496fcff29858a0048e839467ebaf63660b3be3` | rules_lora | 0.1.4 | cluster 7; still pins `rules_runpod` 0.0.11 (fastverk-org, excluded; GitHub tag 404) and `rules_uv` 0.7.3; no source CI; HEAD cannot analyze (`rules_runpod` fetch fails; vehicle skips bazel) |
 | rules_macvm | imported | [tomato-bazel/rules_macvm](https://github.com/tomato-bazel/rules_macvm) | `38d325b81cc66451787015d0f96a95b72e124ed7` | rules_macvm | 0.0.1 | cluster 6 |
 | rules_markdown | imported | [tomato-bazel/rules_markdown](https://github.com/tomato-bazel/rules_markdown) | `19f7561452f379273fe5c13520f6e0984ba30f8e` | rules_markdown | 0.0.3 | cluster 2 |
 | rules_mdbook | imported | [tomato-bazel/rules_mdbook](https://github.com/tomato-bazel/rules_mdbook) | `75ebacc6083f1e2ee0904badcdd5dc173bde5a9d` | rules_mdbook | 0.3.1 | cluster 2 |
@@ -68,16 +71,16 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 | rules_openapi | imported | [tomato-bazel/rules_openapi](https://github.com/tomato-bazel/rules_openapi) | `00e3f8794dd1924a8f39c76bfa25e1ac6f31d58d` | rules_openapi | 0.4.0 | cluster 2; HEAD cannot `bazel test` (`go_client_codegen_toolchain_type` still reserved) |
 | rules_podman | imported | [tomato-bazel/rules_podman](https://github.com/tomato-bazel/rules_podman) | `548ff53f9bb1879a735c7b34a361ffe1826d8e8b` | rules_podman | 0.0.2 | cluster 4 |
 | rules_postgres | imported | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `a471dc40cddd8c97e5f170e5e6c6658e85c4d13c` | rules_postgres | 0.12.0 | cluster 5; still pins `rules_github` 0.1.1 / `rules_lean` 0.6.1 / `rules_lang` 0.4.4; `//examples/meson_smoke` needs host flex (vehicle runs `//docs/... //examples/parse_smoke/...`) |
-| rules_puml | pending | [tomato-bazel/rules_puml](https://github.com/tomato-bazel/rules_puml) | `80ed7791f91611fc23baa004cf9e6f92915b7c54` | rules_puml | 0.0.2 | |
+| rules_puml | imported | [tomato-bazel/rules_puml](https://github.com/tomato-bazel/rules_puml) | `80ed7791f91611fc23baa004cf9e6f92915b7c54` | rules_puml | 0.0.2 | cluster 7; source CI is the broken cross-org reusable workflow; no test targets (exit 4 → `bazel build //...`) |
 | rules_rdf | imported | [tomato-bazel/rules_rdf](https://github.com/tomato-bazel/rules_rdf) | `949e6a2fb5fb2caa65fcf16264f7cb313b1f5c62` | rules_rdf | 0.4.0 | first cluster |
 | rules_readme | imported | [tomato-bazel/rules_readme](https://github.com/tomato-bazel/rules_readme) | `855f2197077c1a0fac1476c0cd19c7bfa76f461b` | rules_readme | 0.0.3 | cluster 2 |
 | rules_schema_org | imported | [tomato-bazel/rules_schema_org](https://github.com/tomato-bazel/rules_schema_org) | `1a9665c4cd76b4ecf8ef008594e89df3926b784c` | rules_schema_org | 0.0.3 | cluster 2 |
 | rules_ssh_tui | imported | [tomato-bazel/rules_ssh_tui](https://github.com/tomato-bazel/rules_ssh_tui) | `9f973cb0d8338a8cc2328763706e05f762cc8234` | rules_ssh_tui | 0.0.5 | cluster 6; no test targets (exit 4 → `bazel build //...`) |
 | rules_storybook | imported | [tomato-bazel/rules_storybook](https://github.com/tomato-bazel/rules_storybook) | `e4359d12ed3136ff59700935a16171fd6d51c54d` | rules_storybook | 0.2.0 | cluster 3; still pins `rules_bun` 0.3.0; `//docs` stardoc drift |
 | rules_systemd | imported | [tomato-bazel/rules_systemd](https://github.com/tomato-bazel/rules_systemd) | `45d20b24c1906c541a7c336c931fc44af462091e` | rules_systemd | 0.0.1 | cluster 6 |
-| rules_tap | pending | [tomato-bazel/rules_tap](https://github.com/tomato-bazel/rules_tap) | `3567697ede16e0378f6501ed32b7436c8f01a441` | rules_tap | 0.0.3 | public rules; private engine is `tap` (excluded) |
-| rules_tectonic | pending | [tomato-bazel/rules_tectonic](https://github.com/tomato-bazel/rules_tectonic) | `ed693324ead9c0796442ffd4d9ad12b27f9cd01d` | rules_tectonic | 0.2.0 | |
-| rules_tla | pending | [tomato-bazel/rules_tla](https://github.com/tomato-bazel/rules_tla) | `b39eb6fc672a67a7d40f1cd258d2eb3abc13f0a3` | rules_tla | 0.2.0 | |
+| rules_tap | imported | [tomato-bazel/rules_tap](https://github.com/tomato-bazel/rules_tap) | `3567697ede16e0378f6501ed32b7436c8f01a441` | rules_tap | 0.0.3 | cluster 7; public rules; private engine is `tap` (excluded); no test targets (exit 4 → `bazel build //...`) |
+| rules_tectonic | imported | [tomato-bazel/rules_tectonic](https://github.com/tomato-bazel/rules_tectonic) | `ed693324ead9c0796442ffd4d9ad12b27f9cd01d` | rules_tectonic | 0.2.0 | cluster 7; still pins `rules_github` 0.1.1; no source CI; HEAD cannot compile examples (tectonic HOME cache hits a read-only sandbox; vehicle runs `//tectonic/...`) |
+| rules_tla | imported | [tomato-bazel/rules_tla](https://github.com/tomato-bazel/rules_tla) | `b39eb6fc672a67a7d40f1cd258d2eb3abc13f0a3` | rules_tla | 0.2.0 | cluster 7 |
 | rules_tomato | imported | [tomato-bazel/rules_tomato](https://github.com/tomato-bazel/rules_tomato) | `6d3cc9fc181dbcc4cbe683d06422e5f20af2d956` | rules_tomato | 0.1.2 | first cluster; BOM + shared bazelrc |
 | rules_uv | imported | [tomato-bazel/rules_uv](https://github.com/tomato-bazel/rules_uv) | `7a43b9b6878608aa91f23110b4dc3cb719ce8ef0` | rules_uv | 0.7.4 | cluster 5; source CI is the broken cross-org reusable workflow; examples cargo-bootstrap uv |
 | rules_vite | imported | [tomato-bazel/rules_vite](https://github.com/tomato-bazel/rules_vite) | `093dbdcaba31ec0de2d45fb1e6cce719a34fec59` | rules_vite | 0.1.1 | cluster 3 |
@@ -101,7 +104,7 @@ set the SHA to the commit that landed.
 - [x] rules_astro
 - [x] rules_autoconf
 - [x] rules_beam
-- [ ] rules_bibtex
+- [x] rules_bibtex
 - [x] rules_bun
 - [x] rules_cc_cross
 - [x] rules_cc_host
@@ -111,14 +114,14 @@ set the SHA to the commit that landed.
 - [x] rules_eslint
 - [x] rules_fastverk_plugin
 - [x] rules_gitlab
-- [ ] rules_graphviz
+- [x] rules_graphviz
 - [x] rules_helm
-- [ ] rules_huggingface
+- [x] rules_huggingface
 - [x] rules_jsonschema
 - [x] rules_k8s
 - [x] rules_lang
 - [x] rules_lean
-- [ ] rules_lora
+- [x] rules_lora
 - [x] rules_macvm
 - [x] rules_markdown
 - [x] rules_mdbook
@@ -127,15 +130,15 @@ set the SHA to the commit that landed.
 - [x] rules_openapi
 - [x] rules_podman
 - [x] rules_postgres
-- [ ] rules_puml
+- [x] rules_puml
 - [x] rules_readme
 - [x] rules_schema_org
 - [x] rules_ssh_tui
 - [x] rules_storybook
 - [x] rules_systemd
-- [ ] rules_tap
-- [ ] rules_tectonic
-- [ ] rules_tla
+- [x] rules_tap
+- [x] rules_tectonic
+- [x] rules_tla
 - [x] rules_uv
 - [x] rules_vite
 - [x] rules_vscode

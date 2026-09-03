@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs when a new commit lands on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: bazel test //...
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+      # `bazel build` first, unconditionally: this repo currently declares NO
+      # test targets, and `bazel test //...` exits 4 ("No test targets were
+      # found, yet testing was requested") on an empty set. That is why this
+      # job was red on every commit — not a broken build, a query that matched
+      # nothing.
+      #
+      # Building //... still verifies every target loads, analyzes, and links,
+      # which is the real coverage a Starlark rules repo gets today.
+      - run: bazel build //...
+
+      # Then test, but only when there is something to test. Guarded rather
+      # than `|| true` so a genuine test FAILURE still fails the job — `|| true`
+      # would swallow that too, and a lane that cannot go red is not a lane.
+      #
+      # The `echo` is deliberate: a silent skip reads identically to "tests
+      # passed" in the UI, which is exactly the false signal being fixed here.
+      - name: bazel test //... (skipped when no test targets exist)
+        run: |
+          if [ -n "$(bazel query 'tests(//...)' 2>/dev/null)" ]; then
+            bazel test //... --test_output=errors
+          else
+            echo "::warning::no test targets in //... — nothing was tested, only built"
+          fi
+
+  buildifier:
+    name: buildifier lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install buildifier
+        run: |
+          curl -fsSL -o /usr/local/bin/buildifier \
+            https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
+          chmod +x /usr/local/bin/buildifier
+      - run: buildifier --mode=check --lint=warn -r .

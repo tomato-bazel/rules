@@ -1,0 +1,3 @@
+component "DecomposeFn" as dec
+component "ClaimProposeFn" as prop
+database "ClaimCache" as cache

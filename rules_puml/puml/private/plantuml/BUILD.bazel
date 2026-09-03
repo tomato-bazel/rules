@@ -1,0 +1,21 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+
+java_binary(
+    name = "plantuml",
+    main_class = "net.sourceforge.plantuml.Run",
+    jvm_flags = [
+        "-Djava.awt.headless=true",
+    ],
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        "@rules_puml_maven//:net_sourceforge_plantuml_plantuml",
+        # PDF mode: Batik SVGConverter + FOP. Loaded for every
+        # invocation (~few-MB classpath cost) but kept on one binary
+        # because the PUML renderer is short-lived and adding a
+        # separate binary doubles the JVM-startup cost per
+        # render-format. If startup time becomes the bottleneck,
+        # split into `plantuml_svg` (core only) + `plantuml_pdf`.
+        "@rules_puml_maven//:org_apache_xmlgraphics_batik_rasterizer",
+        "@rules_puml_maven//:org_apache_xmlgraphics_fop",
+    ],
+)

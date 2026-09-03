@@ -1,0 +1,5 @@
+# The HuggingFace Hub CLI (`hf`) + client library. The CLI ships in
+# the base package since huggingface_hub 1.x — there is no `[cli]`
+# extra anymore. Pinned exactly so the hermetic toolchain is
+# reproducible; bump deliberately.
+huggingface_hub==1.16.1

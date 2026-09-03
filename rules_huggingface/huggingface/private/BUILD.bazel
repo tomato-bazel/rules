@@ -1,0 +1,11 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "rules.bzl",
+    "toolchain.bzl",
+    "endpoints.bzl",
+    "dataset_repo.bzl",
+    "hf_runner.sh.tpl",
+    "hf_upload.sh.tpl",
+    "hf_endpoints_runner.sh.tpl",
+])

@@ -1,0 +1,40 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    deps = [
+        ":citation",
+        ":cited_tex_paper",
+        ":providers",
+        ":research_graph",
+    ],
+)
+
+bzl_library(name = "providers", srcs = ["providers.bzl"])
+
+bzl_library(
+    name = "citation",
+    srcs = ["citation.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(
+    name = "cite_lint",
+    srcs = ["cite_lint.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(
+    name = "cited_tex_paper",
+    srcs = ["cited_tex_paper.bzl"],
+    deps = [":providers"],
+)
+
+bzl_library(
+    name = "research_graph",
+    srcs = ["research_graph.bzl"],
+    deps = [":providers"],
+)

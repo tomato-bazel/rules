@@ -54,8 +54,11 @@ the IDE / Fastverk plugin + language spine: `rules_fastverk_plugin`,
 `rules_postgres`, `rules_uv`. Cluster 6 adds the native / CC / systems
 stack: `rules_autoconf`, `rules_cc_cross`, `rules_cc_host`,
 `rules_meson`, `rules_systemd`, `rules_beam`, `rules_macvm`,
-`rules_ssh_tui`. Remaining public `rules_*` modules stay unchecked in
-the ledger. Source repos are not deleted or archived by this work.
+`rules_ssh_tui`. Cluster 7 adds the docs / research / ML / formal
+stack: `rules_bibtex`, `rules_graphviz`, `rules_huggingface`,
+`rules_lora`, `rules_puml`, `rules_tap`, `rules_tectonic`,
+`rules_tla`. Every public include row is now imported. Source repos
+are not deleted or archived by this work.
 
 ## Tags
 
@@ -169,6 +172,16 @@ uses a bare `cc_binary` that Bazel 9 will not load);
 default (no tests; exit 4 → `bazel build //...`). Source
 `rules_cc_cross` / `rules_cc_host` / `rules_beam` CI is the broken
 cross-org reusable workflow; `rules_meson` has no source CI.
+Cluster 7: `rules_huggingface` / `rules_tla` default `bazel test //...`;
+`rules_bibtex` / `rules_puml` / `rules_tap` default (no tests; exit 4 →
+`bazel build //...`); `rules_graphviz` `build //graphviz/...`
+(`//examples` PDF uses a bundled `svg2pdf` that hardcodes a missing
+pdfkit AFM path); `rules_tectonic` `build //tectonic/...` (examples
+write tectonic's HOME cache in a read-only sandbox); `rules_lora`
+no bazel (`rules_runpod` 0.0.11 fetch 404s; MODULE.bazel is kept
+as-is from source). Source `rules_bibtex` / `rules_huggingface` /
+`rules_puml` CI is the broken cross-org reusable workflow;
+`rules_graphviz` / `rules_lora` / `rules_tectonic` have no source CI.
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
