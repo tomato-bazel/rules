@@ -2,3 +2,6 @@
 /bazel-*
 /MODULE.bazel.lock
 /.bazelrc
+
+__pycache__/
+*.pyc
