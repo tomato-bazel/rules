@@ -1,0 +1,28 @@
+load("//markdown:defs.bzl", "markdown_document", "markdown_fragment")
+
+# Two fragments targeting two named template slots — generated content placed at
+# specific spots (the gitlab-profile two-tables-at-two-locations pattern).
+markdown_fragment(
+    name = "a",
+    content = "Content routed to the **alpha** slot.",
+    slot = "alpha",
+)
+
+markdown_fragment(
+    name = "b",
+    content = "Content routed to the **beta** slot.",
+    slot = "beta",
+)
+
+markdown_document(
+    name = "doc",
+    out = "SLOTS.md",
+    template = "tmpl.md",
+    fragments = [
+        ":a",
+        ":b",
+    ],
+    link_check = False,
+    toc = False,
+    write_to = "SLOTS.md",
+)

@@ -1,0 +1,5 @@
+package(default_visibility = ["//visibility:public"])
+
+# The markdown renderer. v0.1 is a parse-free Python tool run via run_shell
+# (host python3); a future v0.2 swaps in a hermetic CommonMark renderer.
+exports_files(["md_gen.py"])
