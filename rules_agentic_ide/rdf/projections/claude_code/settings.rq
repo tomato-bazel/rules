@@ -1,0 +1,22 @@
+# Claude Code settings projection.
+#
+# An authored aide:Settings projects into .claude/settings.json: the
+# permission allow list + additional directories. The serializer's
+# Settings JSON shape builds {permissions: {allow, additionalDirectories}}.
+# Both lists are normalized (sorted, deduped) for byte-stable output.
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    aide:out_claude_settings a aide:OutputFile ;
+        aide:targetPath ".claude/settings.json" ;
+        aide:fileFormat aide:Json ;
+        aide:jsonShape aide:SettingsConfig ;
+        aide:forIde aide:ClaudeCode ;
+        aide:permissionAllow ?allow ;
+        aide:additionalDirectory ?dir .
+}
+WHERE {
+    ?s a aide:Settings .
+    OPTIONAL { ?s aide:permissionAllow ?allow }
+    OPTIONAL { ?s aide:additionalDirectory ?dir }
+}

@@ -1,0 +1,213 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+load("//rules:defs.bzl", "agent_bundle", "agent_ruleset", "agent_skill", "mcp_server")
+
+package(default_visibility = ["//visibility:public"])
+
+# The per-IDE projection CONSTRUCT queries, exported so consumer repos
+# (e.g. savvi-studio-full/.agents) can reference them in their own
+# agent_bundle / sparql_query targets:
+#   "@rules_agentic_ide//rdf/projections:claude_code/mcp.rq"
+exports_files(glob(["**/*.rq"]))
+
+# The canonical authored graph the projection queries run against. In a
+# consumer repo this is the repo's .agents/graph/*.ttl plus the generic
+# library graphs (//rdf/defs); here it's a small example. No reasoning
+# needed — the CONSTRUCT queries operate on asserted aide:* triples.
+#
+# rules_rdf's own rdf_dataset (not rules_jena's jena_model) — its
+# RdfDatasetInfo carries the `transitive_files` closure field that
+# rules_rdf 0.3.0's merged_dataset_input reads; jena_model's provider
+# still lags that shape (a rules_jena follow-up).
+rdf_dataset(
+    name = "example_canonical",
+    srcs = ["testdata/example_skill.ttl"],
+    in_format = "turtle",
+)
+
+# Claude Code skill projection: aide:Skill → aide:OutputFile filespec
+# for .claude/skills/<name>/SKILL.md. The output Turtle is what the
+# Rust serializer turns into the actual file. Each projection query is
+# its own bazel target (the user's "each SPARQL query is a target").
+sparql_query(
+    name = "claude_skills",
+    dataset = ":example_canonical",
+    query = "claude_code/skills.rq",
+    out_format = "turtle",
+)
+
+# Same projection emitted as N-Triples — the line-oriented, dependency
+# -light form the Rust `generate` serializer parses into output files.
+sparql_query(
+    name = "claude_skills_nt",
+    dataset = ":example_canonical",
+    query = "claude_code/skills.rq",
+    out_format = "ntriples",
+)
+
+# The SAME canonical skill, fanned out to the other two IDEs — proving
+# the normalization thesis: one authoritative definition, N materialized
+# views. Copilot is a shim (link, don't duplicate); Cursor is a full
+# .mdc rule. Adding an IDE = adding a query, never editing a switch.
+sparql_query(
+    name = "copilot_skills_nt",
+    dataset = ":example_canonical",
+    query = "copilot/skills.rq",
+    out_format = "ntriples",
+)
+
+sparql_query(
+    name = "cursor_skills_nt",
+    dataset = ":example_canonical",
+    query = "cursor/skills.rq",
+    out_format = "ntriples",
+)
+
+# One bundle: the same canonical skill projected to all three IDEs and
+# merged into a single filespec. `bazel build //rdf/projections:skills_bundle`
+# → skills_bundle.nt; feed it to `agentic-ide generate`. Collapses the
+# manual per-IDE cat into one target.
+agent_bundle(
+    name = "skills_bundle",
+    graph = ":example_canonical",
+    projections = [
+        "claude_code/skills.rq",
+        "copilot/skills.rq",
+        "cursor/skills.rq",
+    ],
+)
+
+# The canonical authored graph for the ruleset surface. Mirrors
+# :example_canonical — a small example aide:Ruleset standing in for a
+# consumer repo's .agents/graph/rulesets.ttl. Kept as its own dataset so
+# the ruleset projections fan out from exactly one authored source.
+rdf_dataset(
+    name = "example_ruleset_canonical",
+    srcs = ["testdata/example_ruleset.ttl"],
+    in_format = "turtle",
+)
+
+# Claude Code ruleset projection: aide:Ruleset → aide:OutputFile filespec
+# for the repo-root CLAUDE.md. Emitted as N-Triples — the form the Rust
+# `generate` serializer parses into output files. Each projection query
+# is its own bazel target.
+sparql_query(
+    name = "claude_rulesets_nt",
+    dataset = ":example_ruleset_canonical",
+    query = "claude_code/rulesets.rq",
+    out_format = "ntriples",
+)
+
+# The SAME canonical ruleset, fanned out to the other two IDEs — proving
+# the normalization thesis: one authoritative definition, N materialized
+# views. Copilot is the full-body .github/copilot-instructions.md; Cursor
+# is a .cursor/rules/<name>.mdc rule. Adding an IDE = adding a query.
+sparql_query(
+    name = "copilot_rulesets_nt",
+    dataset = ":example_ruleset_canonical",
+    query = "copilot/rulesets.rq",
+    out_format = "ntriples",
+)
+
+sparql_query(
+    name = "cursor_rulesets_nt",
+    dataset = ":example_ruleset_canonical",
+    query = "cursor/rulesets.rq",
+    out_format = "ntriples",
+)
+
+# One bundle: the same canonical ruleset projected to all three IDEs and
+# merged into a single filespec. `bazel build //rdf/projections:rulesets_bundle`
+# → rulesets_bundle.nt; feed it to `agentic-ide generate`.
+agent_bundle(
+    name = "rulesets_bundle",
+    graph = ":example_ruleset_canonical",
+    projections = [
+        "claude_code/rulesets.rq",
+        "copilot/rulesets.rq",
+        "cursor/rulesets.rq",
+    ],
+)
+
+# MCP config projection: all aide:McpServer defs aggregate into one
+# .mcp.json (exercises the JSON serializer + the 3 flavors).
+rdf_dataset(
+    name = "example_mcp_canonical",
+    srcs = ["testdata/example_mcp.ttl"],
+    in_format = "turtle",
+)
+
+sparql_query(
+    name = "claude_mcp_nt",
+    dataset = ":example_mcp_canonical",
+    query = "claude_code/mcp.rq",
+    out_format = "ntriples",
+)
+
+# The SAME canonical MCP graph projected to Cursor's .cursor/mcp.json. Proves
+# the normalization thesis for MCP too: one authoritative server set, N IDE
+# views. Cursor consumes the identical McpConfig JSON shape — only the
+# targetPath / forIde / entry namespace differ from the Claude projection.
+sparql_query(
+    name = "cursor_mcp_nt",
+    dataset = ":example_mcp_canonical",
+    query = "cursor/mcp.rq",
+    out_format = "ntriples",
+)
+
+# Full round-trip: ONE canonical graph (skill + ruleset + MCP) projected
+# across every surface and IDE into a single filespec.
+rdf_dataset(
+    name = "example_all_canonical",
+    srcs = [
+        "testdata/example_skill.ttl",
+        "testdata/example_ruleset.ttl",
+        "testdata/example_mcp.ttl",
+    ],
+    in_format = "turtle",
+)
+
+agent_bundle(
+    name = "all_surfaces",
+    graph = ":example_all_canonical",
+    projections = [
+        "claude_code/skills.rq",
+        "copilot/skills.rq",
+        "cursor/skills.rq",
+        "claude_code/rulesets.rq",
+        "copilot/rulesets.rq",
+        "cursor/rulesets.rq",
+        "claude_code/mcp.rq",
+        "cursor/mcp.rq",
+    ],
+)
+
+# The rules-driven flow (the real consumer API): declare each definition
+# via the agent_* / mcp_server rules, then bundle by `members` — the
+# bundle unions their authored TTL closures into the projection graph.
+# Produces the same filespec as :all_surfaces (which hand-wires the
+# dataset), proving the rules compose into the canonical graph.
+agent_skill(name = "debugging_def", def_ttl = ["testdata/example_skill.ttl"])
+
+agent_ruleset(name = "engineering_def", def_ttl = ["testdata/example_ruleset.ttl"])
+
+mcp_server(name = "servers_def", def_ttl = ["testdata/example_mcp.ttl"])
+
+agent_bundle(
+    name = "from_rules",
+    members = [
+        ":debugging_def",
+        ":engineering_def",
+        ":servers_def",
+    ],
+    projections = [
+        "claude_code/skills.rq",
+        "copilot/skills.rq",
+        "cursor/skills.rq",
+        "claude_code/rulesets.rq",
+        "copilot/rulesets.rq",
+        "cursor/rulesets.rq",
+        "claude_code/mcp.rq",
+        "cursor/mcp.rq",
+    ],
+)

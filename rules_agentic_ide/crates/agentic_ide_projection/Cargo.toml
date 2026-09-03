@@ -1,0 +1,9 @@
+[package]
+name = "agentic_ide_projection"
+version = "0.0.1"
+edition = "2021"
+description = "Standalone projection serializer: an aide:OutputFile N-Triples filespec → per-IDE agent-config files. No private dependencies — the public half of the agentic-ide split."
+
+[dependencies]
+anyhow = "1.0"
+serde_json = "1.0"

@@ -1,0 +1,41 @@
+# Cursor ruleset projection — a full-body .mdc rule. Same canonical
+# source as the Claude and Copilot projections; only the path policy
+# (.cursor/rules/<name>.mdc) and format differ. The body is the
+# canonical ruleset content. When the ruleset is scoped to a file
+# pattern (aide:glob present), a synthetic frontmatter Entry
+# key="globs" carries the glob into the .mdc header — the Cursor-native
+# way to scope a rule to matching files.
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    ?out a aide:OutputFile ;
+        aide:targetPath ?path ;
+        aide:fileFormat aide:Mdc ;
+        aide:forIde aide:Cursor ;
+        aide:fromDef ?ruleset ;
+        aide:bodyPath ?body ;
+        aide:frontmatter ?fm .
+    ?fm aide:key ?fk ; aide:value ?fv ; aide:order ?fo .
+    ?gfm aide:key "globs" ; aide:value ?glob ; aide:order 0 .
+    ?out aide:frontmatter ?gfm .
+}
+WHERE {
+    ?ruleset a aide:Ruleset ;
+        aide:defName ?name .
+    OPTIONAL { ?ruleset aide:bodyPath ?body }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/cursor/ruleset/", ?name)) AS ?out)
+    BIND(CONCAT(".cursor/rules/", ?name, ".mdc") AS ?path)
+    # Scope-to-files: surface aide:glob as a Cursor "globs" frontmatter
+    # entry (order 0 so it leads the .mdc header). Only minted when the
+    # ruleset actually carries a glob.
+    OPTIONAL {
+        ?ruleset aide:glob ?glob .
+        BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/cursor/ruleset/", ?name, "/fm/globs")) AS ?gfm)
+    }
+    OPTIONAL {
+        ?ruleset aide:frontmatter ?fm .
+        ?fm aide:key ?fk ;
+            aide:value ?fv .
+        OPTIONAL { ?fm aide:order ?fo }
+    }
+}
