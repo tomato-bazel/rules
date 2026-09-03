@@ -1,0 +1,130 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load(
+    "@rules_docker_compose//compose:defs.bzl",
+    "docker_compose",
+    "docker_compose_command",
+    "docker_compose_down",
+    "docker_compose_exec",
+    "docker_compose_network",
+    "docker_compose_run",
+    "docker_compose_service",
+    "docker_compose_up",
+    "docker_compose_volume",
+)
+
+# Two-service stack (nginx + redis) using one named volume and one
+# private network. Plus a worker service whose image is supplied at
+# build time from an OCI image layout label.
+#
+# This example exercises the v0.2 docker_compose_service façade:
+#   * `deps`, `networks`, `named_volume_mounts` are label_lists / dicts.
+#   * `oci_image` is a label that the façade resolves to
+#     `<repo>@sha256:<digest>` at build time (replaces the separate
+#     `docker_compose_oci_image_ref` target previously needed for that).
+#   * `healthcheck` is JSON-encoded (no schema-derived typed attr exists
+#     for the nested healthcheck object).
+
+docker_compose_network(
+    name = "appnet",
+    driver = "bridge",
+)
+
+docker_compose_volume(name = "cache")
+
+docker_compose_service(
+    name = "redis",
+    image = "redis:7",
+    networks = [":appnet"],
+    named_volume_mounts = {":cache": "/data"},
+    healthcheck = json.encode({
+        "test": ["CMD", "redis-cli", "ping"],
+        "interval": "10s",
+        "retries": 3,
+    }),
+)
+
+docker_compose_service(
+    name = "web",
+    image = "nginx:1.27",
+    ports = ["8080:80"],
+    networks = [":appnet"],
+    deps = [":redis"],
+    restart = "unless-stopped",
+    environment = {
+        "NGINX_HOST": "example.local",
+    },
+)
+
+# OCI image source — a real repo would point this at `oci_pull` or
+# `oci_image`; the fixture keeps the test hermetic.
+filegroup(
+    name = "fake_alpine_layout",
+    srcs = glob(["fake_oci_layout/**"]),
+)
+
+docker_compose_service(
+    name = "worker",
+    oci_image = ":fake_alpine_layout",
+    oci_repo = "ghcr.io/fastverk/example-worker",
+    command = ["echo", "hello from worker"],
+    networks = [":appnet"],
+)
+
+docker_compose(
+    name = "stack",
+    project_name = "smoke",
+    # Root services only — `_compose_transitive_aspect` walks each
+    # service's `deps`/`networks`/`named_volume_mounts` to discover the
+    # volume, network, and image-ref shards automatically.
+    deps = [
+        ":web",
+        ":worker",
+    ],
+    out = "compose.yaml",
+)
+
+docker_compose_up(
+    name = "stack.up",
+    project = ":stack",
+)
+
+docker_compose_down(
+    name = "stack.down",
+    project = ":stack",
+)
+
+# `bazel run :redis.shell` -> docker compose -f <yml> exec -T redis redis-cli
+docker_compose_exec(
+    name = "redis.shell",
+    project = ":stack",
+    service = "redis",
+    command = ["redis-cli"],
+    no_tty = True,
+)
+
+# `bazel run :worker.once -- --extra-arg` -> docker compose -f <yml> run --rm
+# worker echo "smoke run" --extra-arg
+docker_compose_run(
+    name = "worker.once",
+    project = ":stack",
+    service = "worker",
+    command = ["echo", "smoke run"],
+)
+
+# `bazel run :stack.logs -- redis` -> docker compose -f <yml> logs -f redis
+docker_compose_command(
+    name = "stack.logs",
+    project = ":stack",
+    subcommand = "logs",
+    args = ["-f"],
+)
+
+# Pins the entire end-to-end output. Refresh the committed
+# `expected.yaml` after intentional rule changes with:
+#   bazel build //examples/smoke:stack
+#   cp bazel-bin/examples/smoke/compose.yaml examples/smoke/expected.yaml
+diff_test(
+    name = "stack_yaml_up_to_date",
+    file1 = "expected.yaml",
+    file2 = ":stack",
+)
