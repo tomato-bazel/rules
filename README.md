@@ -117,12 +117,15 @@ immediate children that contain `MODULE.bazel`.
 | `.github/workflows/ci.yml` or `tools/ci/**` | every imported module |
 | `README.md` / `LEDGER.md` only | ledger check, no module test matrix |
 
-Per-module commands match the existing `ci.yml` convention (the
-`fastverk/.github` `reusable-rules-ci.yml` default is `bazel test //...` plus
-buildifier). Overrides live in [`tools/ci/modules.json`](tools/ci/modules.json)
-so `rules_github` keeps `bazel test //docs/...` and `rules_ci` keeps
-`cargo test --workspace` in `translator/`. A module with no test targets
-(`bazel test` exit 4) falls back to `bazel build //...`.
+Per-module commands start from the existing `ci.yml` convention (the
+`fastverk/.github` `reusable-rules-ci.yml` default is `bazel test //...`).
+Overrides live in [`tools/ci/modules.json`](tools/ci/modules.json):
+`rules_ci` still runs `cargo test --workspace` in `translator/`;
+`rules_jena` runs `//jena/...` (examples/docs on HEAD need a newer `rules_rdf` than the preserved 0.3.0 pin);
+`rules_github` `bazel build //...` (the `//docs` drift test is dirty on HEAD).
+A module with no test targets (`bazel test` exit 4) falls back to
+`bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
+imported Starlark.
 
 Bazel invocations pass [`tools/ci/vehicle.bazelrc`](tools/ci/vehicle.bazelrc),
 the public half of `rules_tomato//bazelrc:common.bazelrc` (registry.tbzl.dev

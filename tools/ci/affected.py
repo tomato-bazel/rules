@@ -82,7 +82,7 @@ def matrix_rows(name: str, overrides: dict) -> list[dict]:
     extra = ov.get("extra") or []
     common = {
         "module": name,
-        "bazel": ov.get("bazel", "test //..."),
+        "bazel": ov.get("bazel", "test //... --test_output=errors"),
     }
     if extra:
         # One extra command is enough for the first cluster (rules_ci cargo).
