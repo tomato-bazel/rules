@@ -1,0 +1,4 @@
+# Accidental vehicle-root Bazel workspace. Each module is its own workspace.
+/bazel-*
+/MODULE.bazel.lock
+/.bazelrc

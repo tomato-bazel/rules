@@ -1,0 +1,14 @@
+{
+  "_comment": "Optional per-module CI overrides. Defaults: bazel test //... plus buildifier; empty test sets fall back to bazel build //.... Commands match each source repo's .github/workflows/ci.yml.",
+  "rules_github": {
+    "bazel": "test //docs/..."
+  },
+  "rules_ci": {
+    "extra": [
+      {
+        "cmd": "cargo test --workspace",
+        "workdir": "translator"
+      }
+    ]
+  }
+}
