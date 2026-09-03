@@ -74,7 +74,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: contains(matrix.extra_cmd, 'cargo')
       - uses: actions/setup-go@v5
-        if: contains(matrix.extra_cmd, 'go test')
+        # Do not use contains(extra_cmd, 'go test'): that is a substring of
+        # 'cargo test' ('car' + 'go test') and would run on rules_ci.
+        if: matrix.setup_go == 'true'
         with:
           go-version-file: ${{ matrix.module }}/go.mod
           cache-dependency-path: ${{ matrix.module }}/go.sum

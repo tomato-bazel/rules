@@ -94,6 +94,7 @@ def matrix_rows(name: str, overrides: dict) -> list[dict]:
     # rules_tomato's in-tree .bazelrc points at a missing cred-helper binary;
     # vehicle.bazelrc already has the public registry chain.
     common["noworkspace_rc"] = "true" if ov.get("noworkspace_rc") else "false"
+    common["setup_go"] = "true" if ov.get("setup_go") else "false"
     return [{**common, "os": os_name} for os_name in OS_RUNNERS]
 
 
