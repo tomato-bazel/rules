@@ -1,0 +1,33 @@
+load("//readme:defs.bzl", "markdown_fragment", "readme")
+
+markdown_fragment(
+    name = "overview",
+    src = "overview.md",
+    title = "Overview",
+    weight = 0,
+)
+
+markdown_fragment(
+    name = "repos",
+    src = "repos.md",
+    title = "Repositories",
+    weight = 10,
+)
+
+# readme() defaults write_to = "README.md", so this auto-creates:
+#   bazel run  //examples/profile:readme_doc.write        (materialize README.md)
+#   bazel test //examples/profile:readme_doc.write_test   (drift gate)
+#
+# Named readme_doc, NOT readme: markdown_document renders to `<name>.md`, so a
+# target named `readme` produces `readme.md` alongside the materialized
+# `README.md`. Those are two files on Linux and one on macOS, where the build
+# then fails with an opaque "Could not copy inputs into sandbox ... (File
+# exists)". readme() now rejects that collision at load time.
+readme(
+    name = "readme_doc",
+    fragments = [
+        ":overview",
+        ":repos",
+    ],
+    template = "README.md.tmpl",
+)
