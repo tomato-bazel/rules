@@ -1,0 +1,32 @@
+# Exports for the RulesLean Lean library. The library is built with
+# Lake (see lakefile.lean alongside) for local development + CI; the
+# Bazel rules side just needs to reference the source files so
+# `lake_workspace` can stage them at materialization time.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    [
+        "RulesLean.lean",
+        "lakefile.lean",
+        "lake-manifest.json",
+        "lean-toolchain",
+    ],
+)
+
+# `RulesLean.lean` is listed outside the glob deliberately: it is the library's
+# root module and is always present, so a constant glob pattern would only serve
+# to make its absence silent. Listing it means a rename fails the build loudly.
+filegroup(
+    name = "library_sources",
+    srcs = ["RulesLean.lean"] + glob(["RulesLean/**/*.lean"]),
+)
+
+filegroup(
+    name = "lake_config",
+    srcs = [
+        "lake-manifest.json",
+        "lakefile.lean",
+        "lean-toolchain",
+    ],
+)
