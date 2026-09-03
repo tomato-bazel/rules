@@ -1,0 +1,14 @@
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX schema: <https://schema.org/>
+
+# Property grounding: every property with its declared domain/range
+# (schema.org's polymorphic `domainIncludes` / `rangeIncludes`). These
+# tuples tell the NL→BGP parser which properties connect which classes
+# — i.e. the legal triple-pattern shapes a capability BGP can take
+# (`?x schema:about ?y` is valid when about's domain/range admit ?x/?y).
+SELECT ?property ?domain ?range WHERE {
+  ?property a rdf:Property .
+  OPTIONAL { ?property schema:domainIncludes ?domain }
+  OPTIONAL { ?property schema:rangeIncludes ?range }
+}
+ORDER BY ?property
