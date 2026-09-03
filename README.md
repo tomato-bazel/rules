@@ -141,9 +141,11 @@ Cluster 3: `rules_bun` / `rules_vite` / `rules_chrome` `//docs/...`
 `copy_to_directory.bzl` bzl_library);
 `rules_storybook` `build //...` (`//docs` stardoc drift);
 `rules_astro` no bazel (`aspect_rules_js` 2.1.3 cannot analyze).
-Cluster 4 uses the default `bazel test //...` (source `rules_gitlab` /
-`rules_docker_compose` CI was red only because those repos lacked the
-registry chain `vehicle.bazelrc` now supplies).
+Cluster 4 uses the default `bazel test //...` except `rules_docker_compose`
+`//compose/... //examples/...` (`//docs` stardoc cannot parse a
+`docker_compose_run` docstring on HEAD). Source `rules_gitlab` CI was red
+only because that repo lacked the registry chain `vehicle.bazelrc` now
+supplies.
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
