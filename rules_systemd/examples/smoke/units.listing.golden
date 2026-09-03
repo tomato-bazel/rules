@@ -1,0 +1,10 @@
+d 0755 /etc/
+d 0755 /etc/systemd/
+d 0755 /etc/systemd/system/
+d 0755 /etc/systemd/system/multi-user.target.wants/
+d 0755 /etc/tmpfiles.d/
+f 0644 /etc/systemd/system/demo-init.service
+f 0644 /etc/systemd/system/demo-stack.target
+f 0644 /etc/systemd/system/demo.service
+f 0644 /etc/tmpfiles.d/demo.conf
+l /etc/systemd/system/multi-user.target.wants/demo.service -> ../demo.service

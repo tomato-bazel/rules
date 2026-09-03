@@ -1,0 +1,16 @@
+[Unit]
+Description=Demo daemon
+Requires=demo-init.service
+After=network.target demo-init.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/demo --config /etc/demo/config.yaml
+Restart=on-failure
+RestartSec=2s
+User=demo
+Environment=DEMO_ENV=local
+Environment=DEMO_PORT=8080
+
+[Install]
+WantedBy=multi-user.target
