@@ -1,0 +1,35 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# Build-time tooling for the runpod backend of `lora_train`. Two
+# subcommands: `write-jobspec` (serialize the rule attrs into the typed
+# TrainingJobSpec JSON) and `write-runpod-manifest` (synthesize the
+# runpod-cli manifest TOML). Remote execution is `@rules_runpod`, not this
+# binary — the former `run` stub was removed.
+rust_binary(
+    name = "runpod_orchestrator",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:blake3",
+        "@crates//:clap",
+        "@crates//:serde_json",
+    ],
+)
+
+# Unit tests for the size-aware torchtune model-builder mapping
+# (`lora_builder`/`parse_param_size`) — the qwen2 size regression that
+# bit both the local runner and this manifest synth.
+rust_test(
+    name = "runpod_orchestrator_test",
+    crate = ":runpod_orchestrator",
+)
+
+# Convenience alias matching the label the `lora_train` rule
+# defaults to.
+alias(
+    name = "write_jobspec",
+    actual = ":runpod_orchestrator",
+)
