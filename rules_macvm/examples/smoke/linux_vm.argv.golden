@@ -1,0 +1,22 @@
+# kind: mock
+--cpus
+2
+--memory
+2048
+--kernel
+examples/smoke/vmlinuz
+--initrd
+examples/smoke/initrd.img
+--kernel-cmdline
+console=hvc0 root=/dev/vda
+--device
+virtio-blk,path=examples/smoke/rootfs.img
+--device
+rosetta,mountTag=rosetta
+--ignition
+examples/smoke/provision.ign
+--nested
+--device
+virtio-net,nat
+--device
+virtio-rng

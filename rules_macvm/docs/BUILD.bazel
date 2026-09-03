@@ -1,0 +1,42 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+package(default_visibility = ["//visibility:public"])
+
+# Reference docs are stardoc-generated AND committed; the diff_tests gate
+# that the committed copies match the docstrings. Regenerate with
+# `bazel run //docs:update`.
+
+_DOCS = {
+    "vm_defs": ("//vm:defs.bzl", "//vm:defs_bzl"),
+    "vm_providers": ("//vm:providers.bzl", "//vm:providers_bzl"),
+    "vm_toolchains": ("//vm:toolchains.bzl", "//vm:toolchains_bzl"),
+    "vfkit": ("//providers/vfkit:extensions.bzl", "//providers/vfkit:extensions_bzl"),
+    "image": ("//image:defs.bzl", "//image:defs_bzl"),
+}
+
+[
+    stardoc(
+        name = name + "_doc",
+        out = name + ".md.generated",
+        input = input,
+        deps = [lib],
+    )
+    for name, (input, lib) in _DOCS.items()
+]
+
+[
+    diff_test(
+        name = name + "_doc_up_to_date",
+        file1 = name + ".md",
+        file2 = ":" + name + "_doc",
+    )
+    for name in _DOCS
+]
+
+sh_binary(
+    name = "update",
+    srcs = ["update.sh"],
+    data = [":" + name + "_doc" for name in _DOCS],
+)
