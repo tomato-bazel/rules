@@ -1,0 +1,14 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "repositories.bzl",
+    "extensions.bzl",
+])
+
+# The hermetic helm binary, reached by the rules via this stable label so
+# consumers never name the `@helm` repo directly.
+alias(
+    name = "helm_bin",
+    actual = "@helm//:helm",
+)
