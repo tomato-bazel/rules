@@ -1,0 +1,125 @@
+"""Entry point for the `gitlab_ci_validate` Bazel rule.
+
+A wrapper around `check-jsonschema` (a pip dep brought in via the
+`@rules_gitlab_tooling` hub) that:
+
+  1. Loads the pinned GitLab CI JSON Schema (passed via argv).
+  2. Parses the `.gitlab-ci.yml` with `ruamel.yaml`, registering
+     constructors that absorb GitLab's custom CI YAML tags
+     (`!reference`, `!file`, `!base64`, …). check-jsonschema's
+     default loader rejects these tags with `ConstructorError`,
+     making real-world GitLab configs unparseable.
+  3. Dumps the parsed structure to a temp JSON file.
+  4. Invokes check-jsonschema's CLI with the JSON file +
+     `--schemafile` pointing at the pinned schema, bypassing its
+     YAML parser entirely.
+  5. On success, writes a single-line stamp file so Bazel knows
+     the check ran cleanly (caching keys on the file's contents).
+
+Errors are printed to stderr with file:line context. Exit code is
+the check-jsonschema runner's exit code — non-zero for any
+violation.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import tempfile
+from pathlib import Path
+
+from ruamel.yaml import YAML
+from ruamel.yaml.constructor import SafeConstructor
+from ruamel.yaml.nodes import MappingNode, ScalarNode, SequenceNode
+
+from check_jsonschema.cli import main as check_jsonschema_main
+
+
+def _absorb_unknown_tag(loader, suffix, node):  # type: ignore[no-untyped-def]
+    """Generic ruamel.yaml multi-constructor. add_multi_constructor
+    passes the loader instance, the matched tag suffix, and the
+    node — we ignore the suffix and just hand back the underlying
+    Python value (scalar / sequence / mapping) so GitLab's custom
+    `!`-prefixed CI tags don't blow up parsing.
+    """
+    if isinstance(node, ScalarNode):
+        return loader.construct_scalar(node)
+    if isinstance(node, SequenceNode):
+        return loader.construct_sequence(node, deep=True)
+    if isinstance(node, MappingNode):
+        return loader.construct_mapping(node, deep=True)
+    return None
+
+
+def _make_tolerant_yaml() -> YAML:
+    yaml = YAML(typ="safe")
+    # add_multi_constructor on `!` catches every tag whose handle
+    # is the local `!` shortcut (GitLab's `!reference`, `!file`,
+    # `!base64`, …). Tags with explicit `!!`-style standard
+    # prefixes use ruamel's built-in constructors.
+    SafeConstructor.add_multi_constructor("!", _absorb_unknown_tag)
+    return yaml
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--schema", required=True, type=Path)
+    ap.add_argument("--src", required=True, type=Path)
+    ap.add_argument(
+        "--stamp",
+        required=True,
+        type=Path,
+        help="Path the rule expects the check to write on success.",
+    )
+    args = ap.parse_args(argv)
+
+    yaml = _make_tolerant_yaml()
+    try:
+        with open(args.src) as f:
+            data = yaml.load(f)
+    except Exception as e:
+        print(
+            f"gitlab_ci_validate: failed to parse {args.src} as YAML: {e}",
+            file=sys.stderr,
+        )
+        return 2
+
+    # Dump to a temp JSON file so check-jsonschema's standard JSON
+    # path handles it (sidesteps its ruamel-yaml parser, which
+    # rejects unknown tags before our constructor would fire).
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".json",
+        delete=False,
+    ) as tmp:
+        json.dump(data, tmp, default=str)
+        tmp_path = tmp.name
+
+    check_argv = [
+        "--schemafile",
+        str(args.schema),
+        # GitLab uses Perl-style slash-delimited regex literals
+        # for fields like `coverage:` (`/^TOTAL\s+\d+/`); strip
+        # the regex format check so those don't fail validation.
+        # Everything else (`uri`, structural, additionalProperties)
+        # stays enforced.
+        "--disable-formats",
+        "regex",
+        "--verbose",
+        tmp_path,
+    ]
+    try:
+        check_jsonschema_main(check_argv)
+        rc = 0
+    except SystemExit as e:
+        rc = int(e.code) if e.code is not None else 0
+    if rc == 0:
+        args.stamp.write_text(
+            f"gitlab_ci_validate: OK\nschema={args.schema}\nsrc={args.src}\n",
+        )
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
