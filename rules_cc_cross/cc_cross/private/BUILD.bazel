@@ -1,0 +1,5 @@
+package(default_visibility = ["//cc_cross:__subpackages__"])
+
+exports_files([
+    "arm_gnu.BUILD.tpl",
+])
