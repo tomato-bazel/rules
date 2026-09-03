@@ -1,0 +1,171 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Docs (stardoc drift) + examples (parse smoke), on linux + macos.
+  # Cold runs ~30-60s (libpg_query source download + cc_library build).
+  #
+  # The name used to read `bazel test //...`, which overclaimed: this has never
+  # run `//lean/...`, so the whole Lean model — the bulk of this repo — was
+  # outside CI. Renamed to what it actually does. //lean/... stays out of THIS
+  # gate because it would pull the 19 Pg.Ir cluster emits into the fast path;
+  # the `proofs` job below runs it instead, off the critical path.
+  test:
+    name: bazel test //docs/... //examples/...
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+      - run: bazel test //docs/... //examples/... --test_output=errors
+
+  # ⛔ THE THEOREMS. Every `lean_test` in //lean, by WILDCARD.
+  #
+  # This job exists because renaming the gate above was honest but not a fix. It
+  # said out loud that the Lean model was outside CI and then left it there, and
+  # the very next Lean change — a denotational semantics whose entire content is
+  # theorems — went through seven green checks, NONE of which ran a single one of
+  # them. A gate that names what it does not cover is still not covering it.
+  #
+  # ⚠ `//lean:all`, never a list of targets. A list is exactly how this repo got
+  # here: `pg_core_compiled_consume_test` was named individually, so it stayed
+  # green while everything added beside it was ungated. A wildcard picks up the
+  # next theorem file whether or not anybody remembers this file exists.
+  #
+  # 128s cold locally for all 28. Its own job, so the slow emits never sit in
+  # front of the docs/examples gate.
+  proofs:
+    name: the theorems (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-proofs
+          repository-cache: true
+      - run: bazel test //lean:all --test_output=errors
+
+  # The compiled-olean seam, on LINUX.
+  #
+  # `//lean:pg_core` compiles the AST core into a library on top of the imported
+  # atlas olean; `//lean:pg_core_oleans` republishes it; the consume test takes
+  # the compiled library via `deps` with no source re-listing. That chain is what
+  # downstream consumers will fetch instead of recompiling ~200 source labels, so
+  # it needs to stay green.
+  #
+  # Linux specifically, and not as a matrix. `lean_olean_archive` before
+  # rules_lean 0.6.1 failed only on linux — GNU tar exits 1 reading through the
+  # bazel-out symlink farm where BSD tar merely warns — so a darwin-green archive
+  # is not evidence for the platform that builds. macOS cannot exhibit it and
+  # adding it to the matrix would only re-prove the immune side.
+  olean_seam:
+    name: compiled-olean seam (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-olean
+          repository-cache: true
+      - run: |
+          bazel test //lean:pg_core_compiled_consume_test --test_output=errors
+          bazel build //lean:pg_core_oleans
+      - name: the archive must carry real bytes, not links into bazel-out
+        run: |
+          A=$(bazel cquery --output=files //lean:pg_core_oleans 2>/dev/null | tail -1)
+          echo "archive: $A ($(wc -c < "$A") bytes)"
+          # A non-dereferenced archive still contains entries at the right paths,
+          # so assert entry TYPE. 'l' in column one is a symlink; any is a fail.
+          if tar tvzf "$A" | grep -q '^l'; then
+            echo "FAIL: archive contains symlinks — not dereferenced" >&2
+            tar tvzf "$A" | grep '^l' >&2
+            exit 1
+          fi
+          n=$(tar tzf "$A" | grep -c '\.olean$')
+          test "$n" -ge 10 || { echo "FAIL: only $n oleans, expected >=10" >&2; exit 1; }
+          echo "OK: $n oleans, no symlinks"
+
+  buildifier:
+    name: buildifier lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install buildifier
+        run: |
+          curl -fsSL -o /usr/local/bin/buildifier \
+            https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
+          chmod +x /usr/local/bin/buildifier
+      - run: buildifier --mode=check --lint=warn -r .
+
+  # Gate 1 — regen idempotence: RETIRED. It diffed the committed Rust/C
+  # artifacts against a fresh lean_emit, but "Lean is the live source of truth"
+  # (433e668) dropped those committed artifacts, removing //tools/regen:gate1_all.
+  # The Lean→Rust/C emit is still exercised: Gate 2 builds every cluster from its
+  # generated source, so a broken emit fails there.
+
+  # Gate 2 — cluster behavioral diff-test. Bazel-native: each
+  # rust/pg_<cluster>/ ships cc_library(c_oracle) + rust_library +
+  # rust_test(diff_<cluster>). Tests link the vendored real-PG C body
+  # via the setjmp wrapper and assert bit-identical Datums + matching
+  # FmgrErrorKind. Rust toolchain hermetic via rules_rust — no rustup
+  # install needed.
+  gate2_behavioral_diff:
+    name: gate 2 — behavioral diff
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: gate2-${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+      - run: bazel test --jobs=4 //tools/regen:gate2_all --test_output=errors
+
+  # Gate 3 — clang AST structural diff vs real Postgres. Bazel-native via
+  # rules_lang's c_ast_dump_single (cc toolchain → AST JSON) +
+  # c_ast_struct_diff_test (hermetic rust_binary). Catches algorithmic
+  # divergence even when Gate 2 (behavioral) passes on sampled inputs.
+  #
+  # DECOUPLED from public CI: the diff/IR tools live in //crates/pipeline,
+  # which stays private in aion/polyglot (the public @rules_lang ships only the
+  # //rules/c rule *defs*, not the Rust tools). So //tools/regen:gate3_all
+  # cannot resolve here. Gate 3 runs in the private aion/polyglot engine CI,
+  # where crates/pipeline is present. Re-enable here only if those tools are
+  # published to the public rules_lang. (Disabled, not deleted, to document the
+  # contract + keep re-enabling trivial.)
+  gate3_clang_struct_diff:
+    name: gate 3 — clang struct diff
+    if: false
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: gate3-${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+      - run: bazel test --jobs=4 //tools/regen:gate3_all --test_output=errors
