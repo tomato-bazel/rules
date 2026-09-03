@@ -10,5 +10,8 @@
         "workdir": "translator"
       }
     ]
+  },
+  "rules_tomato": {
+    "noworkspace_rc": true
   }
 }

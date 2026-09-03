@@ -1,0 +1,18 @@
+# Public half of rules_tomato//bazelrc:common.bazelrc, applied by the
+# vehicle CI when invoking Bazel in a module subdirectory.
+#
+# Individual rules_* repos dropped this chain into a meta-repo ~/.bazelrc
+# ("Drop common bazel config — lifted into the fastverk meta repo"). This
+# git vehicle is that missing home: one file, not a vendored registry.
+#
+# Credential helper is omitted on purpose. common.bazelrc points at
+# %workspace%/tools/credhelper/fastverk-cred-helper, which does not exist
+# inside imported module trees. Public modules resolve from
+# registry.tbzl.dev + BCR without it.
+
+common --enable_bzlmod
+common --experimental_isolated_extension_usages
+common --registry=https://registry.tbzl.dev/
+common --registry=https://bcr.bazel.build/
+test --test_output=errors
+test --test_summary=terse

@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 VEHICLE_FORCE_ALL_PREFIXES = (
     ".github/workflows/ci.yml",
     "tools/ci/",
+    # Shared registry-chain flags; a change here affects every module job.
 )
 
 
@@ -90,6 +91,9 @@ def matrix_rows(name: str, overrides: dict) -> list[dict]:
     else:
         common["extra_cmd"] = ""
         common["extra_workdir"] = "."
+    # rules_tomato's in-tree .bazelrc points at a missing cred-helper binary;
+    # vehicle.bazelrc already has the public registry chain.
+    common["noworkspace_rc"] = "true" if ov.get("noworkspace_rc") else "false"
     return [{**common, "os": os_name} for os_name in OS_RUNNERS]
 
 

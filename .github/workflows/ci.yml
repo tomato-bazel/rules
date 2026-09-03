@@ -77,21 +77,33 @@ jobs:
         working-directory: ${{ matrix.module }}/${{ matrix.extra_workdir }}
         run: ${{ matrix.extra_cmd }}
       - name: bazel ${{ matrix.bazel }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # rules_tomato//bazelrc:common.bazelrc registry chain (public half).
+          # Do not swallow query failures: a missing registry used to look like
+          # "no tests" and then fail on bazel build with a useless warning.
+          rc=(--bazelrc="${GITHUB_WORKSPACE}/tools/ci/vehicle.bazelrc")
+          if [ "${{ matrix.noworkspace_rc }}" = "true" ]; then
+            rc+=(--noworkspace_rc)
+          fi
           cmd="${{ matrix.bazel }}"
-          # Preserve the reusable-rules-ci.yml default, but do not fail a
-          # module that declares no tests (rules_tap's original reason).
+          run_bazel() { bazel "${rc[@]}" "$@"; }
           if [ "$cmd" = "test //..." ]; then
-            if [ -n "$(bazel query 'tests(//...)' 2>/dev/null || true)" ]; then
-              bazel test //... --test_output=errors
-            else
+            set +e
+            run_bazel test //... --test_output=errors
+            code=$?
+            set -e
+            if [ "$code" -eq 4 ]; then
               echo "::warning::${{ matrix.module }}: no test targets — bazel build //..."
-              bazel build //...
+              run_bazel build //...
+            elif [ "$code" -ne 0 ]; then
+              exit "$code"
             fi
           else
             # shellcheck disable=SC2086
-            bazel $cmd --test_output=errors
+            run_bazel $cmd --test_output=errors
           fi
       - name: buildifier lint
         if: runner.os == 'Linux'

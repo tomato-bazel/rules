@@ -122,8 +122,12 @@ Per-module commands match the existing `ci.yml` convention (the
 buildifier). Overrides live in [`tools/ci/modules.json`](tools/ci/modules.json)
 so `rules_github` keeps `bazel test //docs/...` and `rules_ci` keeps
 `cargo test --workspace` in `translator/`. A module with no test targets
-falls back to `bazel build //...` (same reason `rules_tap`'s original workflow
-did).
+(`bazel test` exit 4) falls back to `bazel build //...`.
+
+Bazel invocations pass [`tools/ci/vehicle.bazelrc`](tools/ci/vehicle.bazelrc),
+the public half of `rules_tomato//bazelrc:common.bazelrc` (registry.tbzl.dev
+then BCR). Source repos lifted that chain into a meta-repo `~/.bazelrc`; this
+vehicle is that missing home. The registry itself is not vendored.
 
 [`rules_tap`](https://github.com/tomato-bazel/rules_tap) is change-based test
 selection **inside one Bazel workspace**. This git repo is many workspaces
