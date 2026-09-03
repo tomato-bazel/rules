@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+// The canonical RDF statement substrate — graph_ir's L1. Every graph
+// (build, legislative, founding-claims, app) reduces to a stream of these
+// statements, keyed on stable IRIs, regardless of the domain vocabulary
+// layered on top. The message shapes mirror Apache Jena's RDF Protobuf wire
+// format, so a stream converts mechanically into a Jena Model / Dataset at
+// the sink and round-trips through rules_rdf's `rdfprotobuf` serialization
+// with no glue. Schema-only: consumers generate their own language bindings
+// (java_proto_library, py_proto_library, …) from `//rdf:statement_proto`.
+package fastverk.rdf.v1;
+
+option java_multiple_files = true;
+option java_package = "dev.fastverk.rdf.v1";
+option java_outer_classname = "RdfStatementProto";
+
+// One RDF statement: a triple, a quad, or a prefix declaration. Carried as
+// the unit of a graph stream (e.g. a Beam `PCollection` element); a
+// per-statement provenance envelope, when needed, is carried out of band by
+// the domain (e.g. as the key in `KV<Context, RdfStatement>`) rather than
+// embedded here, keeping the substrate provenance-neutral.
+message RdfStatement {
+  // Exactly one payload is populated.
+  oneof payload {
+    // Triple in the default (unnamed) graph.
+    Triple triple = 1;
+    // Quad in a named graph.
+    Quad quad = 2;
+    // Prefix declaration so re-serializations to Turtle/JSON-LD stay readable.
+    PrefixDecl prefix = 3;
+  }
+}
+
+// One RDF triple: subject predicate object.
+message Triple {
+  // The subject term (IRI or blank node by convention; literals are not
+  // valid subjects in standard RDF).
+  Term subject = 1;
+  // The predicate term (always an IRI by RDF semantics).
+  Term predicate = 2;
+  // The object term (any kind).
+  Term object = 3;
+}
+
+// One RDF quad: subject predicate object in a named graph.
+message Quad {
+  // The subject term.
+  Term subject = 1;
+  // The predicate term.
+  Term predicate = 2;
+  // The object term.
+  Term object = 3;
+  // The named graph this quad belongs to.
+  Term graph = 4;
+}
+
+// One RDF term: an IRI, a literal, or a blank-node label.
+message Term {
+  // Exactly one kind is populated.
+  oneof kind {
+    // Absolute IRI string — the canonical node identity graph_ir keys on.
+    string iri = 1;
+    // Literal with optional language code or datatype IRI.
+    Literal literal = 2;
+    // Blank-node label (locally unique within the emitting stream).
+    string bnode = 3;
+  }
+}
+
+// One RDF literal. Without a tag, the literal is implicitly xsd:string.
+message Literal {
+  // Lexical form of the literal.
+  string lexical = 1;
+  // Optional tag: BCP-47 language code for lang-tagged strings, or
+  // datatype IRI for typed literals. Not both.
+  oneof tag {
+    // BCP-47 language code (e.g. "en", "en-US").
+    string language_code = 2;
+    // Datatype IRI (e.g. "http://www.w3.org/2001/XMLSchema#integer").
+    string datatype = 3;
+  }
+}
+
+// A namespace prefix binding (e.g. "schema" -> "https://schema.org/").
+message PrefixDecl {
+  // Short prefix label (without the trailing colon).
+  string prefix = 1;
+  // The IRI the prefix expands to.
+  string iri = 2;
+}
