@@ -44,9 +44,11 @@ Cluster 1 is imported (`rules_tomato`, `rules_ci`, `rules_github`,
 `rules_rdf`, `rules_jena`). Cluster 2 adds schema/RDF dependents and the
 docs stack `rules_tomato` already uses: `rules_jsonschema`, `rules_openapi`,
 `rules_aip`, `rules_schema_org`, `rules_xsd`, `rules_markdown`,
-`rules_mdbook`, `rules_readme`. Remaining public `rules_*` modules stay
-unchecked in the ledger. Source repos are not deleted or archived by this
-work.
+`rules_mdbook`, `rules_readme`. Cluster 3 adds the JS/web stack:
+`rules_bun`, `rules_nextjs`, `rules_vite`, `rules_eslint`, `rules_astro`,
+`rules_storybook`, `rules_web`, `rules_chrome`. Remaining public `rules_*`
+modules stay unchecked in the ledger. Source repos are not deleted or
+archived by this work.
 
 ## Tags
 
@@ -131,6 +133,12 @@ cluster 2 keeps source commands (`rules_markdown` / `rules_readme` `//examples/.
 `rules_openapi` skips bazel (`register_toolchains("//go:default_go_client_codegen_toolchain")`
 points at a toolchain type still commented out on HEAD) and compiles the
 Go plugin with `go test ./tools/openapi_to_go_client/`.
+Cluster 3: `rules_bun` / `rules_vite` / `rules_chrome` `//docs/...`
+(examples need a consumer `@npm` / Chrome runtime);
+`rules_nextjs` `build //next/...` (`//docs` stardoc is missing a
+`copy_to_directory.bzl` bzl_library);
+`rules_storybook` `build //...` (`//docs` stardoc drift);
+`rules_astro` no bazel (`aspect_rules_js` 2.1.3 cannot analyze).
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
