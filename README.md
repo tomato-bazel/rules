@@ -21,10 +21,11 @@ automation.
   `playwright_chrome_js_test` macros that wire `@chrome` into a Playwright
   `launchPersistentContext` against a Bazel-managed user-data-dir. See
   [docs/playwright_py.md](docs/playwright_py.md) and
-  [docs/playwright_js.md](docs/playwright_js.md). Consumers only pay the
-  `rules_python` / `aspect_rules_js` cost if they load the sub-module — the
-  default `bazel_dep` on `rules_chrome` is a zero-cost chrome+chromedriver
-  toolchain.
+  [docs/playwright_js.md](docs/playwright_js.md). Because a macro's `load()`
+  resolves against the defining module, `rules_chrome` declares
+  `aspect_rules_js` + `rules_python` as non-dev `bazel_dep`s (so the macros are
+  loadable by consumers — see 0.1.1 in the CHANGELOG); they enter the module
+  graph but the chrome/chromedriver **toolchain** itself needs neither.
 
 ## Install
 
@@ -186,9 +187,11 @@ The Node side mirrors this — `playwright_chrome_js_test` from
 `aspect_rules_js`. See [examples/smoke](examples/smoke) for runnable
 versions of both.
 
-Consumers who **don't** load the sub-module don't pay for it — `rules_python`
-and `aspect_rules_js` are `dev_dependency` on rules_chrome, so they only
-appear in your dep graph if your `MODULE.bazel` brings them in itself.
+As of 0.1.1, `aspect_rules_js` + `rules_python` are non-dev `bazel_dep`s on
+rules_chrome (a macro's `load()` resolves against the *defining* module, so they
+must be visible to consumers of the sub-module). They therefore appear in your
+module graph even if you never load the sub-module — but the chrome/chromedriver
+toolchain itself pulls in neither at fetch time. `rules_nodejs` stays dev-only.
 
 ## Scope and non-goals
 
