@@ -29,8 +29,9 @@ rules/
   README.md                 # this file — vehicle, not a module
   LEDGER.md                 # every include / exclude row + import provenance
   LICENSE                   # Apache-2.0 for vehicle docs/CI
-  .github/workflows/ci.yml  # one path-filtered workflow
-  tools/ci/                 # affected-module detection + ledger check
+  .github/workflows/ci.yml     # path-filtered per-module tests
+  .github/workflows/drift.yml  # daily source-SHA drift audit (report-only)
+  tools/ci/                    # affected-module detection + ledger + drift check
   rules_jena/               # module(name = "rules_jena", version = "0.3.2")
   rules_ci/                 # module(name = "rules_ci", version = "0.3.0")
   …
@@ -118,7 +119,10 @@ when that repo is ready, or keep passing `--workspaces-root`.
 
 ## Path-filtered CI
 
-There is one workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+The PR/push gate is one workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+A separate [`.github/workflows/drift.yml`](.github/workflows/drift.yml) audits
+source SHAs daily; it is **not** on `pull_request` or `push` and does not
+gate merges.
 
 A change under `rules_jena/` runs that module's tests (and buildifier), not
 the whole tree. The detector is [`tools/ci/affected.py`](tools/ci/affected.py):
@@ -206,6 +210,16 @@ history is not rewritten. Source repos are not deleted or archived here.
 [LEDGER.md](LEDGER.md) records, for every include and exclude row: source
 repo, default-branch commit SHA, `module(name=...)`, `module(version=...)`,
 and whether the tree is imported.
+
+**Source drift** is when an imported LEDGER SHA falls behind that source
+repo's default-branch HEAD (this is how a one-commit `rules_postgres`
+move went unnoticed). It is not a `module(version=...)` bump and must not
+be "fixed" by rewriting the imported tree. Re-sync with
+`git subtree pull --prefix=<module> … main` (no `--squash`) and update
+that row's SHA to the commit that merged. The
+[`drift`](.github/workflows/drift.yml) workflow
+([`tools/ci/check_drift.py`](tools/ci/check_drift.py)) reports this on a
+daily schedule plus `workflow_dispatch`; it is off the PR path.
 
 ## What this repo is not
 
