@@ -1,0 +1,8 @@
+# Stub. The html_parser_toolchain_type vocabulary will land here when
+# a concrete consumer arrives (likely firefox_html_parser feeding the
+# polyglot AST HTML emitter's output validator).
+
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
