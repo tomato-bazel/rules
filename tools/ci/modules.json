@@ -57,5 +57,17 @@
   },
   "rules_docker_compose": {
     "bazel": "test //compose/... //examples/... --test_output=errors"
+  },
+  "rules_lean": {
+    "bazel": "test //docs/... --test_output=errors"
+  },
+  "rules_lang": {
+    "bazel": "test //docs/... --test_output=errors"
+  },
+  "rules_postgres": {
+    "bazel": "test //docs/... //examples/... --test_output=errors"
+  },
+  "rules_uv": {
+    "bazel": "test //docs/... --test_output=errors"
   }
 }

@@ -48,9 +48,12 @@ docs stack `rules_tomato` already uses: `rules_jsonschema`, `rules_openapi`,
 `rules_bun`, `rules_nextjs`, `rules_vite`, `rules_eslint`, `rules_astro`,
 `rules_storybook`, `rules_web`, `rules_chrome`. Cluster 4 adds the infra
 stack: `rules_helm`, `rules_k8s`, `rules_cloudformation`,
-`rules_docker_compose`, `rules_gitlab`, `rules_podman`. Remaining public
-`rules_*` modules stay unchecked in the ledger. Source repos are not
-deleted or archived by this work.
+`rules_docker_compose`, `rules_gitlab`, `rules_podman`. Cluster 5 adds
+the IDE / Fastverk plugin + language spine: `rules_fastverk_plugin`,
+`rules_agentic_ide`, `rules_vscode`, `rules_lean`, `rules_lang`,
+`rules_postgres`, `rules_uv`. Remaining public `rules_*` modules stay
+unchecked in the ledger. Source repos are not deleted or archived by
+this work.
 
 ## Tags
 
@@ -146,6 +149,15 @@ Cluster 4 uses the default `bazel test //...` except `rules_docker_compose`
 `docker_compose_run` docstring on HEAD). Source `rules_gitlab` CI was red
 only because that repo lacked the registry chain `vehicle.bazelrc` now
 supplies.
+Cluster 5: `rules_lean` / `rules_lang` `//docs/...` (source fast gates;
+examples pull Lean toolchains / lake workspaces);
+`rules_postgres` `//docs/... //examples/...` (source fast gate; `//lean`
+proofs stay out of the vehicle matrix);
+`rules_uv` `//docs/...` (examples cargo-bootstrap the uv binary; source
+CI is the broken cross-org reusable workflow);
+`rules_vscode` default `bazel test //...`;
+`rules_fastverk_plugin` / `rules_agentic_ide` default (no source CI;
+exit 4 falls back to `bazel build //...`).
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.
