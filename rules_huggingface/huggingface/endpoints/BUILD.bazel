@@ -1,0 +1,20 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# Typed control-plane CLI over the generated Inference Endpoints
+# client. The `hf_inference_endpoint` rule's runners invoke this.
+rust_binary(
+    name = "hf-endpoints",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    deps = [
+        "//huggingface/openapi:inference_endpoints_client",
+        "@hf_crates//:anyhow",
+        "@hf_crates//:clap",
+        "@hf_crates//:reqwest",
+        "@hf_crates//:serde",
+        "@hf_crates//:serde_json",
+        "@hf_crates//:tokio",
+    ],
+)

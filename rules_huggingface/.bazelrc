@@ -1,0 +1,7 @@
+# Premium tier first so private siblings (e.g. rules_openapi for the
+# Phase 2 control-plane codegen) resolve before falling through to the
+# public fastverk registry and BCR.
+
+# The hermetic `hf` pip hub is an isolated extension usage so a
+# consumer's own pip universe can't collide with ours.
+common --experimental_isolated_extension_usages
