@@ -4,9 +4,10 @@
     "bazel": "build //..."
   },
   "rules_jena": {
-    "bazel": "test --test_output=errors -- //... -//docs/..."
+    "bazel": "test //jena/... --test_output=errors"
   },
   "rules_ci": {
+    "bazel": "",
     "extra": [
       {
         "cmd": "cargo test --workspace",

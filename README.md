@@ -120,7 +120,7 @@ immediate children that contain `MODULE.bazel`.
 Per-module commands start from the existing `ci.yml` convention (the
 `fastverk/.github` `reusable-rules-ci.yml` default is `bazel test //...`).
 Overrides live in [`tools/ci/modules.json`](tools/ci/modules.json):
-`rules_ci` still runs `cargo test --workspace` in `translator/`;
+`rules_ci` matches its source workflow (`cargo test --workspace` in `translator/`, no bazel);
 `rules_jena` runs `//jena/...` (examples/docs on HEAD need a newer `rules_rdf` than the preserved 0.3.0 pin);
 `rules_github` `bazel build //...` (the `//docs` drift test is dirty on HEAD).
 A module with no test targets (`bazel test` exit 4) falls back to

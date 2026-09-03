@@ -66,6 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bazel-contrib/setup-bazel@0.10.0
+        if: matrix.bazel != ''
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}-${{ matrix.os }}-${{ matrix.module }}
@@ -77,6 +78,7 @@ jobs:
         working-directory: ${{ matrix.module }}/${{ matrix.extra_workdir }}
         run: ${{ matrix.extra_cmd }}
       - name: bazel ${{ matrix.bazel }}
+        if: matrix.bazel != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -89,6 +91,10 @@ jobs:
             rc+=(--noworkspace_rc)
           fi
           cmd="${{ matrix.bazel }}"
+          if [ -z "$cmd" ]; then
+            echo "::notice::${{ matrix.module }}: no bazel command (source ci.yml is extra-only)"
+            exit 0
+          fi
           run_bazel() { bazel "${rc[@]}" "$@"; }
           set +e
           # shellcheck disable=SC2086
