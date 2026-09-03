@@ -1,0 +1,202 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs for the same ref. Added with the axiom_audit job, which
+# takes the matrix from 5 jobs to 7 — without this a merge burst stacks whole
+# runs and each one downloads a Lean toolchain.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast PR gate: rule-graph loads, stardoc-generated reference docs match
+  # the .bzl docstrings (diff_test), build is green on both Linux and macOS.
+  # Does *not* exercise `lake_workspace` — that's deferred to the slow job
+  # so we don't pull mathlib on every push.
+  test:
+    name: bazel test //docs/...
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+      - run: bazel test //docs/... --test_output=errors
+
+  buildifier:
+    name: buildifier lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install buildifier
+        run: |
+          curl -fsSL -o /usr/local/bin/buildifier \
+            https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
+          chmod +x /usr/local/bin/buildifier
+      - run: buildifier --mode=check --lint=warn -r .
+
+  # `lean_olean_archive` on LINUX specifically.
+  #
+  # This job exists because the rule was broken on linux for a week and CI could
+  # not see it. `//examples/olean_roundtrip` has covered the rule since 0.4.0,
+  # but nothing ever ran it: the fast gate is `//docs/...` only, and the two
+  # Lean jobs go through elan/lake rather than the Bazel rule. Six green checks,
+  # none of which touched the rule.
+  #
+  # Linux is the point, not incidental. The failure mode is GNU tar exiting 1 on
+  # `file changed as we read it` where BSD tar only warns — so the bug is
+  # invisible on macOS by construction, and a macOS-green run is not evidence.
+  # ubuntu-only is deliberate: doubling the matrix would only re-prove the
+  # platform that cannot fail.
+  #
+  # A PR gate, unlike lake_integration below: this is cheap (a two-file Lean
+  # library, no Mathlib, no Batteries — the Lean toolchain download dominates
+  # and setup-bazel caches it), and catching it post-merge is exactly what
+  # already happened.
+  olean_archive:
+    name: olean archive + LEAN_PATH namespace (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-olean
+          repository-cache: true
+      - run: |
+          bazel test //examples/olean_roundtrip/... --test_output=errors
+          # LEAN_PATH namespace resolution: two dep roots both owning `Pg/`,
+          # consumed by a target rooted at `App/`. Lean does not fall through
+          # LEAN_PATH roots, so this fails unless the shared namespace is staged.
+          bazel test //examples/shared_namespace/... --test_output=errors
+
+  # The proof gates, and — the part that matters — their FAILURE paths.
+  #
+  # A gate is worth exactly what its negative test is worth. `forbid_sorry` and
+  # `lean_axiom_test` both exist to turn a passing build red, so a job that only
+  # ran the passing targets would be satisfied by a rule that does nothing at
+  # all. The three `*_is_rejected` targets are `manual`-tagged (they cannot be
+  # in `bazel test //...`; they are meant to be red) and are run here with the
+  # exit code asserted NON-zero.
+  #
+  # Both platforms: the sorry gate matches the compiler's warning text, and a
+  # reworded or re-localized message would make it silently vacuous. If that
+  # ever happens, `sorry_is_rejected` goes green and this job fails on it —
+  # which is the whole reason the negatives are in CI rather than in a comment.
+  axiom_audit:
+    name: proof gates + failure paths (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-axioms-${{ matrix.os }}
+          repository-cache: true
+      - name: positive — the gates pass on honest proofs
+        run: bazel test //examples/axiom_audit:all --test_output=errors
+      - name: negative — each gate must FAIL
+        run: |
+          # `bazel test` on an expected-red target: `-e` would abort the step on
+          # the very exit code being tested, so capture it with `|| rc=$?`.
+          for t in tightened_allowlist_is_rejected \
+                   admitted_is_rejected \
+                   sorry_is_rejected; do
+            rc=0
+            bazel test "//examples/axiom_audit:$t" --test_output=errors || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "::error::$t PASSED — the gate did not fire. It is inert."
+              exit 1
+            fi
+            echo "ok: $t failed as required (exit $rc)"
+          done
+
+  # End-to-end smoke: actually runs `lake_workspace` against a Batteries-only
+  # Lake workspace (no Mathlib → no multi-GB Reservoir cache download), then
+  # typechecks a Lean file that imports Batteries. This exercises the full
+  # chain: Lean toolchain download → lake update → lake build batteries →
+  # lean_prebuilt_library → lean_test. Push-only (not a PR gate) because
+  # building Batteries from source is ~1-2 min cold.
+  lake_integration:
+    name: lake_workspace end-to-end (batteries)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-lake
+          repository-cache: true
+      - run: bazel test //examples/batteries_smoke:smoke_test --test_output=errors
+
+  # RulesLean Lean library version compatibility. Builds lean/lib/ against
+  # multiple Lean toolchains via elan (auto-installs the version pinned in
+  # `lean-toolchain`). When this fails on a new Lean release, we know to
+  # gate the library's source on a Lean-version conditional (or bump our
+  # default toolchain).
+  #
+  # Matrix kept narrow until we have signal — expand as new stable Lean
+  # versions land.
+  ruleslean_library:
+    name: lake build lean/lib/ (Lean ${{ matrix.lean_version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lean_version: ["4.29.1", "4.30.0-rc2"]
+        # v4.30.0-rc2 matches the cslib pin; we want compat in case
+        # downstream consumers depend on both rules_lean and cslib.
+    steps:
+      - uses: actions/checkout@v4
+      - name: install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            -sSf -o elan-init.sh
+          sh elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: pin toolchain
+        working-directory: lean/lib
+        run: |
+          echo "leanprover/lean4:v${{ matrix.lean_version }}" > lean-toolchain
+          lake --version
+      - name: lake build
+        working-directory: lean/lib
+        run: lake build
+      - name: smoke the CLIs
+        working-directory: lean/lib
+        run: |
+          # Sanity: each lean_exe target's --help-style empty invocation
+          # exits with the documented 2 (usage) rather than crashing.
+          #
+          # This was previously written `cmd 2>/dev/null; test $? -eq 2`, which
+          # can NEVER pass. `run:` defaults to `bash -e {0}`, and exiting 2 is
+          # the PASS condition here — so `-e` aborted the step on the CLI's own
+          # exit before `test` ever ran, failing the job with that same 2. The
+          # step had never gone green.
+          #
+          # `cmd || rc=$?` is the fix: a command whose failure is being tested
+          # is exempt from `-e`, so the status reaches `test` intact.
+          rc=0; lake exe oleanImports 2>/dev/null || rc=$?
+          test "$rc" -eq 2
+          rc=0; lake exe leanClosure 2>/dev/null || rc=$?
+          test "$rc" -eq 2

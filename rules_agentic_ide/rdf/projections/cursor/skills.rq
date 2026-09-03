@@ -1,0 +1,30 @@
+# Cursor skill projection — a full-body .mdc rule with native Cursor
+# frontmatter. The skill's canonical SKILL.md keeps its own frontmatter
+# in-body (right for Claude), so here we strip it and supply a proper
+# .mdc header: aide:description → `description`, plus `alwaysApply: true`
+# (these skills are always-on). Adding `aide:glob` would instead scope it.
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    ?out a aide:OutputFile ;
+        aide:targetPath ?path ;
+        aide:fileFormat aide:Mdc ;
+        aide:forIde aide:Cursor ;
+        aide:fromDef ?skill ;
+        aide:bodyPath ?body ;
+        aide:stripBodyFrontmatter true ;
+        aide:frontmatter ?descFm ;
+        aide:frontmatter ?applyFm .
+    ?descFm aide:key "description" ; aide:value ?desc ; aide:order 0 .
+    ?applyFm aide:key "alwaysApply" ; aide:value "true" ; aide:order 1 .
+}
+WHERE {
+    ?skill a aide:Skill ;
+        aide:defName ?name .
+    OPTIONAL { ?skill aide:bodyPath ?body }
+    OPTIONAL { ?skill aide:description ?desc }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/cursor/skill/", ?name)) AS ?out)
+    BIND(CONCAT(".cursor/rules/", ?name, ".mdc") AS ?path)
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/cursor/skill/", ?name, "/fm/desc")) AS ?descFm)
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/cursor/skill/", ?name, "/fm/apply")) AS ?applyFm)
+}

@@ -1,0 +1,38 @@
+load("//tools/regen:cluster.bzl", "gate2_test_labels", "gate3_test_labels")
+load("//tools/regen:clusters.bzl", "CLUSTERS")
+
+package(default_visibility = ["//visibility:public"])
+
+# ─── Gate 2 — cluster behavioral diff-test ─────────────────────────
+#
+# Bazel-native via rules_rust + cc_library per cluster, wired by the
+# `pg_ir_clusters()` macro invoked once from `//rust:BUILD.bazel`.
+# This test_suite picks up every cluster with a `tests/diff_*.rs`
+# harness plus pg_fcinfo's round_trip test.
+test_suite(
+    name = "gate2_all",
+    tests = gate2_test_labels(CLUSTERS),
+)
+
+# ─── Gate 3 — clang AST structural diff vs real Postgres ──────────
+#
+# Bazel-native via rules_lang's `c_ast_dump_single` + `c_ast_struct_diff_test`,
+# wired by the `pg_ir_cluster()` macro for clusters with `lean_emit_c =
+# True` and a `pg_source` label. Only macaddr/tid/uuid qualify today.
+test_suite(
+    name = "gate3_all",
+    tests = gate3_test_labels(CLUSTERS),
+)
+
+# Convenience: run both Pg.Ir gates + the catalog round-trip under a
+# single test_suite handle. (Gate 1 was retired when Lean became the
+# live source of truth for crate bodies — no committed artifact for
+# regen to drift against.)
+test_suite(
+    name = "gates_all",
+    tests = [
+        ":gate2_all",
+        ":gate3_all",
+        "//lean:gate_catalog_dat_round_trip",
+    ],
+)

@@ -1,0 +1,13 @@
+package(default_visibility = ["//visibility:public"])
+
+# The agentic-ide projection rules surface. The `.bzl` files here are
+# loaded by consumer BUILD files via `@rules_agentic_ide//rules:defs.bzl`.
+exports_files([
+    "defs.bzl",
+    "bundle.bzl",
+    "providers.bzl",
+    "skill.bzl",
+    "ruleset.bzl",
+    "command.bzl",
+    "mcp.bzl",
+])

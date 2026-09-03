@@ -1,0 +1,18 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# The PUBLIC generate-only CLI. Depends solely on agentic_ide_projection
+# (+ clap/anyhow) — no klad, consolidator, protos, or tokio — so it
+# carves into the public repo as its user-facing binary. (The private
+# repo keeps the full `agentic-ide` CLI with harvest/consolidate/serve.)
+rust_binary(
+    name = "agentic-ide-generate",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    deps = [
+        "//crates/agentic_ide_projection",
+        "@crates//:anyhow",
+        "@crates//:clap",
+    ],
+)

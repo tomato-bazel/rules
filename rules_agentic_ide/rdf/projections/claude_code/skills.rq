@@ -1,0 +1,33 @@
+# Claude Code skill projection.
+#
+# Each authored aide:Skill becomes one aide:OutputFile describing
+# .claude/skills/<name>/SKILL.md (markdown + YAML frontmatter, full
+# body). The per-IDE *path policy* lives entirely in the BIND below —
+# adding an IDE is adding a query (registry/visitor dispatch keyed on
+# rdf:type), never editing a switch. The output is the generic
+# "filespec" the Rust serializer consumes; it never sees "a skill".
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    ?out a aide:OutputFile ;
+        aide:targetPath ?path ;
+        aide:fileFormat aide:MarkdownYaml ;
+        aide:forIde aide:ClaudeCode ;
+        aide:fromDef ?skill ;
+        aide:bodyPath ?body ;
+        aide:frontmatter ?fm .
+    ?fm aide:key ?fk ; aide:value ?fv ; aide:order ?fo .
+}
+WHERE {
+    ?skill a aide:Skill ;
+        aide:defName ?name .
+    OPTIONAL { ?skill aide:bodyPath ?body }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#out/claude/skill/", ?name)) AS ?out)
+    BIND(CONCAT(".claude/skills/", ?name, "/SKILL.md") AS ?path)
+    OPTIONAL {
+        ?skill aide:frontmatter ?fm .
+        ?fm aide:key ?fk ;
+            aide:value ?fv .
+        OPTIONAL { ?fm aide:order ?fo }
+    }
+}

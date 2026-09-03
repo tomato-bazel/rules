@@ -1,0 +1,29 @@
+# Copilot ruleset projection.
+#
+# Copilot reads a single repo-wide .github/copilot-instructions.md, so —
+# like the Claude CLAUDE.md projection — every authored aide:Ruleset folds
+# into ONE file as an ordered body fragment (root preamble + topic rules
+# under their aide:fragmentHeader). The serializer concatenates them in
+# aide:order. (Scoped .github/instructions/*.instructions.md is a later
+# refinement for per-glob rules.)
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    aide:out_copilot_ruleset a aide:OutputFile ;
+        aide:targetPath ".github/copilot-instructions.md" ;
+        aide:fileFormat aide:MarkdownYaml ;
+        aide:forIde aide:Copilot ;
+        aide:bodyFragment ?frag .
+    ?frag aide:bodyPath ?body ;
+        aide:order ?order ;
+        aide:fragmentHeader ?header .
+}
+WHERE {
+    ?rs a aide:Ruleset ;
+        aide:defName ?name ;
+        aide:bodyPath ?body .
+    OPTIONAL { ?rs aide:order ?o }
+    BIND(COALESCE(?o, 0) AS ?order)
+    OPTIONAL { ?rs aide:fragmentHeader ?header }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#frag/copilot/ruleset/", ?name)) AS ?frag)
+}

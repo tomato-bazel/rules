@@ -1,0 +1,13 @@
+@prefix aide: <https://fastverk.dev/ontology/agentic_ide/projection#> .
+
+# A single authored ruleset definition — the kind of triple that, in a
+# consumer repo, lives in .agents/graph/rulesets.ttl. The per-IDE
+# projection queries reshape it into CLAUDE.md / copilot-instructions.md
+# / a .cursor/rules/<name>.mdc file. Project scope: a repo-wide doc, no
+# file-pattern glob.
+<https://example.org/ruleset/engineering>
+    a aide:Ruleset ;
+    aide:defName "engineering" ;
+    aide:description "Repository engineering conventions and guardrails." ;
+    aide:scope aide:Project ;
+    aide:bodyPath ".agents/rulesets/engineering.md" .

@@ -118,7 +118,8 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: ${{ matrix.module }}
         run: |
-          curl -fsSL -o /tmp/buildifier \
+          # Shared retry: GitHub release fetches flake with curl 35 (TLS reset).
+          bash "${GITHUB_WORKSPACE}/tools/ci/curl_retry.sh" /tmp/buildifier \
             https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
           chmod +x /tmp/buildifier
           # Imported trees were not format-clean (source CI already red).

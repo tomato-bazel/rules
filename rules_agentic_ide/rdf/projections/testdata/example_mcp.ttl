@@ -1,0 +1,37 @@
+@prefix aide: <https://fastverk.dev/ontology/agentic_ide/projection#> .
+
+# Three authored MCP servers, one per flavor — the kind of triples a
+# consumer repo declares in .agents/graph/mcp.ttl. They project together
+# into a single .mcp.json.
+
+# (a) Network flavor — external HTTP service with auth header. The
+# ${LINEAR_TOKEN} env interpolation passes through verbatim (no secret
+# is resolved at generate time).
+<https://example.org/mcp/linear>
+    a aide:McpServer ;
+    aide:defName "linear" ;
+    aide:mcpFlavor aide:Network ;
+    aide:transport aide:Http ;
+    aide:url "https://mcp.linear.app/sse" ;
+    aide:header [ aide:key "Authorization" ; aide:value "Bearer ${LINEAR_TOKEN}" ] .
+
+# (b) Binary flavor — external command with ordered args + env.
+<https://example.org/mcp/serena>
+    a aide:McpServer ;
+    aide:defName "serena" ;
+    aide:mcpFlavor aide:Binary ;
+    aide:transport aide:Stdio ;
+    aide:command "uvx" ;
+    aide:arg [ aide:value "--from" ; aide:order 0 ] ;
+    aide:arg [ aide:value "git+https://github.com/oraios/serena" ; aide:order 1 ] ;
+    aide:arg [ aide:value "serena-mcp-server" ; aide:order 2 ] ;
+    aide:envVar [ aide:key "SERENA_LOG" ; aide:value "info" ] .
+
+# (c) Bazel-target flavor — a hermetic server backed by an upstream
+# bazel target. Projects to `bazel run <label>`.
+<https://example.org/mcp/studio>
+    a aide:McpServer ;
+    aide:defName "studio" ;
+    aide:mcpFlavor aide:BazelTarget ;
+    aide:transport aide:Stdio ;
+    aide:bazelLabel "//tools/studio_mcp:server" .

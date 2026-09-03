@@ -1,0 +1,8 @@
+package(default_visibility = ["//visibility:public"])
+
+# SHACL shapes for the aide: authoring vocabulary, exported so a consumer
+# can validate its .agents/graph before projecting:
+#   bazel run @rules_jena//jena/shacl:jena_shacl -- \
+#       --shapes=$(location @rules_agentic_ide//rdf/shapes:aide_shapes.ttl) \
+#       --in-format=turtle < my-graph.ttl
+exports_files(["aide_shapes.ttl"])

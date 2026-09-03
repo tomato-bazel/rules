@@ -1,0 +1,24 @@
+common --enable_bzlmod
+
+# rules_lora uses `isolate = True` on its rules_rust crate_universe
+# extension. Required until Bazel makes isolated extension usages
+# non-experimental.
+common --experimental_isolated_extension_usages
+
+# Bazel module registries (fastverk org), in priority order: the public
+# fastverk registry, then BCR. Every module this build depends on — rules_lang
+# (0.2.0, with the Lean atlas + //rules/c defs), rules_lora, rules_meson,
+# rules_github, rules_lean — now resolves from the public registry. The
+# defunct premium-private registry has been removed.
+common --registry=https://registry.fastverk.com/
+common --registry=https://bcr.bazel.build/
+
+# Credential helper for GitHub tarball fetches — forwards `gh auth token`
+# (or GITHUB_TOKEN env) as a Bearer auth header (also relieves rate limits).
+common --credential_helper=*.github.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+common --credential_helper=github.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+common --credential_helper=raw.githubusercontent.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+common --credential_helper=codeload.github.com=%workspace%/tools/credhelper/gh-cred-helper.sh
+
+test --test_output=errors
+test --test_summary=terse

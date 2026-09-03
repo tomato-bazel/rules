@@ -1,0 +1,490 @@
+load("@rules_lean//lean:lean.bzl", "lean_library", "lean_main_test", "lean_olean_archive", "lean_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//lean:pg_ast_smoke.bzl", "PG_AST_CORE_SRCS", "pg_ast_smoke_test")
+load("//tools/regen:clusters.bzl", "CLUSTERS")
+load("//tools/regen:lean_emits.bzl", "wire_all_lean_emits")
+
+# ─── SPIKE: the two-hop compiled-olean seam ────────────────────────
+#
+# Question this answers: can `Pg.*` be published as compiled oleans and
+# consumed WITHOUT recompiling, on real content?
+#
+# It matters because every consumer today takes Pg.* as SOURCE — the
+# `exports_files` below plus ~200 raw source labels per consumer BUILD file —
+# and recompiles the whole model. The leangres module split is justified
+# entirely by replacing that with fetched oleans. That justification is
+# currently unvalidated: this repo has never used `lean_library` or
+# `lean_olean_archive` anywhere, so the only evidence is rules_lean's own
+# two-file toy example.
+#
+# The specific unproven step is COMPOSITION. `@rules_lang//lean:atlas` is an
+# imported olean, and Pg/Ast.lean imports `Polyglot.Sql.Ast` from it. So
+# `:pg_core` is a compiled library built ON TOP OF a prebuilt library, and
+# `:pg_core_oleans` republishes that. Hop 1 (consume an imported olean) is
+# proven by the lean_tests below. Hop 2 (a library that consumes one and is
+# itself published) is not, and the six-module topology needs N hops.
+#
+# Real content, not a toy: mutual recursion in Pg.Ast's ExprExt block, a
+# nested inductive (`Expr Ext` carrying `List (Expr Ext)`), and the
+# 1,191-line printer.
+lean_library(
+    name = "pg_core",
+    srcs = PG_AST_CORE_SRCS,
+    visibility = ["//visibility:public"],
+    deps = ["@rules_lang//lean:atlas"],
+)
+
+lean_olean_archive(
+    name = "pg_core_oleans",
+    library = ":pg_core",
+    visibility = ["//visibility:public"],
+)
+
+# The payoff check. `pg_ast_smoke_test` compiles this same entry by re-listing
+# all ten core sources in `srcs`; this target takes the COMPILED library via
+# `deps` and lists only the test file. If it is green, a consumer can drop its
+# source list — which is the entire build-speed argument for the module split.
+#
+# Entry choice matters and cost one iteration to learn: `Pg/Smoke.lean` looks
+# like the natural pick but its import closure reaches
+# `Pg.Catalog.{Snapshot,Resolution,AttributeRef,Generated}` — including the
+# 4,686-line generated catalog — so it is NOT the AST core. AstAlterTableTest
+# imports exactly `Pg.{Ast,Stmt,AstSmart,Pretty}`, all inside `:pg_core`.
+#
+# That divergence is itself a finding: the AST closure and the catalog closure
+# are genuinely separate, which is the evidence for splitting `pgcatalog`
+# (where `Generated` lives, changing only on a Postgres bump) away from
+# `pgast` (edited daily).
+lean_test(
+    name = "pg_core_compiled_consume_test",
+    srcs = ["Pg/AstAlterTableTest.lean"],
+    entry = "Pg/AstAlterTableTest.lean",
+    visibility = ["//visibility:public"],
+    deps = [":pg_core"],
+)
+
+# Expose all Pg.* Lean source files publicly so cross-repo
+# consumers (e.g. Aion's lean_test targets) can list them in
+# their own `srcs` for shim-style migrations. rules_lean's
+# lean_test rule doesn't expose a LeanInfo provider for
+# downstream `deps` consumption, so cross-repo Lean source
+# sharing happens at the source-file level via `srcs`.
+exports_files(
+    glob(["Pg/**/*.lean"]),
+    visibility = ["//visibility:public"],
+)
+
+# ─── Lean → Rust/C emits (live source of truth at build time) ──────
+#
+# One `lean_emit` per cluster, producing `<base>_rs_emit.rs` (and
+# `<base>_c_emit.c` for clusters with a real-PG-headers C variant).
+# These outputs are consumed directly by `//rust:<crate>` and Gate 3's
+# `c_ast_dump_single` — no committed `src/lib.rs` / `c_oracle/<base>_emit.c`
+# exist anymore. Lean is THE source; the old Gate 1 (regen idempotence
+# against committed artifacts) becomes tautological and was removed.
+
+wire_all_lean_emits(clusters = CLUSTERS)
+
+# ─── Catalog gen: .dat round-trip across the FULL bootstrap catalog ─
+#
+# For each of PG 17.6's 24 `.dat` system-catalog seed files (vendored
+# under `Pg/Catalog/dat/`), `Pg.Catalog.Dat.parseFile` parses + the
+# canonical `emitFile` re-emits + `parseFile` re-parses; the entry
+# prints one `ok: <name> (<N> rows)` line per file and a summary.
+# `diff_test` against the committed expected catches any drift between
+# the parser and the upstream format.
+#
+# Coverage: 6,777 rows total (pg_namespace 3 → pg_proc 3,314).
+# A passing test certifies the Lean grammar captures every value
+# shape PG's vendored `.dat` files use — quoted strings with `\\` and
+# `\'` escapes, bare-identifier values, brace-containing strings
+# (pg_aggregate's `'{0,0}'`), multi-line records, the lot.
+#
+# `DatRoundTrip.lean`'s `main : IO UInt32` self-validates: prints
+# `ok: <file> ...` per file and returns 0 only when all 24 round-trip
+# stable. `lean_main_test` (rules_lean 0.3.5) passes the test iff that
+# exit code is 0 — no committed expected.txt fixture needed.
+lean_main_test(
+    name = "gate_catalog_dat_round_trip",
+    # Lean compile + run of all 24 .dat files (6,777 rows; pg_proc
+    # alone is 3,314) exceeds the default 300s test timeout. Under
+    # `lean_regen_test` the slow lean_emit ran as a build action
+    # (no timeout) and only the diff_test was a test; lean_main_test
+    # runs the whole thing in-test, so we need the larger budget.
+    timeout = "long",
+    srcs = [
+        "Pg/Catalog/Dat.lean",
+        "Pg/Catalog/DatRoundTrip.lean",
+    ],
+    # .dat files pulled directly from the pinned @postgres_src checkout
+    # (no vendoring). rules_lean 0.3.4's lean_emit.data stages external-
+    # repo files at their workspace-relative path, so each lands at
+    # $WORK/src/include/catalog/<name>.dat — matching the path the
+    # entry uses for `IO.FS.readFile`.
+    data = [
+        "@postgres_src//:src/include/catalog/pg_aggregate.dat",
+        "@postgres_src//:src/include/catalog/pg_am.dat",
+        "@postgres_src//:src/include/catalog/pg_amop.dat",
+        "@postgres_src//:src/include/catalog/pg_amproc.dat",
+        "@postgres_src//:src/include/catalog/pg_authid.dat",
+        "@postgres_src//:src/include/catalog/pg_cast.dat",
+        "@postgres_src//:src/include/catalog/pg_class.dat",
+        "@postgres_src//:src/include/catalog/pg_collation.dat",
+        "@postgres_src//:src/include/catalog/pg_conversion.dat",
+        "@postgres_src//:src/include/catalog/pg_database.dat",
+        "@postgres_src//:src/include/catalog/pg_language.dat",
+        "@postgres_src//:src/include/catalog/pg_namespace.dat",
+        "@postgres_src//:src/include/catalog/pg_opclass.dat",
+        "@postgres_src//:src/include/catalog/pg_operator.dat",
+        "@postgres_src//:src/include/catalog/pg_opfamily.dat",
+        "@postgres_src//:src/include/catalog/pg_proc.dat",
+        "@postgres_src//:src/include/catalog/pg_range.dat",
+        "@postgres_src//:src/include/catalog/pg_tablespace.dat",
+        "@postgres_src//:src/include/catalog/pg_ts_config.dat",
+        "@postgres_src//:src/include/catalog/pg_ts_config_map.dat",
+        "@postgres_src//:src/include/catalog/pg_ts_dict.dat",
+        "@postgres_src//:src/include/catalog/pg_ts_parser.dat",
+        "@postgres_src//:src/include/catalog/pg_ts_template.dat",
+        "@postgres_src//:src/include/catalog/pg_type.dat",
+    ],
+    entry = "Pg/Catalog/DatRoundTrip.lean",
+)
+
+# Receiving scaffolding for the PgAst extraction (Phase 1).
+#
+# Currently: empty stub Lean modules at `Pg/*` + `Pg/Catalog/*`.
+# Phase 1 of the extraction (Aion-side drives, target start
+# 2026-06-01) overwrites the stubs with the moved content from
+# `lean/Aion/Db/PgTy.lean`, `PgAst.lean`, `PgPretty.lean`,
+# `PgRegexAst.lean`, `Catalog.lean` (umbrella), and `Catalog/*`.
+#
+# Full decision trail (8 docs):
+#   ~/Documents/rfcs/narrative/pgast-extraction-proposal.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-review.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-response.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-phase1-plan.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-phase1-ack.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-scaffold-landed.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-scaffold-landed-ack.md
+#   ~/Documents/rfcs/narrative/pgast-extraction-pre-phase1-followup.md
+#
+# Note: Pg/RegexAst.lean + Pg/Catalog.lean added 2026-05-25 by the
+# Aion-side agent per the pre-Phase-1 dep audit (commit `c4e49f1`
+# Aion-side; see pre-phase1-followup.md). PgRegexAst is a hard dep
+# of Pg.Ast via `Expr.regexMatch`, so it must land in Phase 1
+# (not Phase 4 as originally scoped). Pg/Catalog.lean is the
+# umbrella re-exporter; Aion's current umbrella is missing
+# `AttributeRef` + `Generated` imports — Phase 1 PR completes them.
+#
+# This `:smoke_test` proves the build wiring on empty stubs: it
+# imports every scaffolded module and asserts they type-check
+# together. Stays in place after Phase 1 as a structural
+# regression-gate on the receiving-side imports.
+lean_test(
+    name = "smoke_test",
+    srcs = [
+        # Dependency-ordered: lean_test compiles srcs in list order.
+        "Pg/Ty.lean",
+        "Pg/RegexAst.lean",
+        "Pg/Catalog/Oid.lean",
+        "Pg/Catalog/Tables.lean",
+        "Pg/Catalog/RegTypes.lean",
+        "Pg/Catalog/Snapshot.lean",
+        "Pg/Catalog/Resolution.lean",
+        "Pg/Catalog/AttributeRef.lean",
+        "Pg/Catalog/Generated.lean",
+        "Pg/Catalog.lean",
+        "Pg/Ast.lean",
+        "Pg/Spec.lean",
+        "Pg/Stmt.lean",
+        "Pg/AstSmart.lean",
+        "Pg/Pretty.lean",
+        "Pg/Smoke.lean",
+    ],
+    entry = "Pg/Smoke.lean",
+    visibility = ["//visibility:public"],
+    # Polyglot.Sql.Ast arrives as a prebuilt, toolchain-matched olean (no
+    # recompile), replacing the former @polyglot_ast source include.
+    deps = ["@rules_lang//lean:atlas"],
+)
+
+# Smoke test that exercises cross-repo wiring with the polyglot_ast
+# kernel's `Polyglot.Sql.Ast` (the generic SQL atlas). Pg/Ast.lean's factor
+# step (Phase 1b) will `import Polyglot.Sql.Ast` and define
+# `Pg.Ast.ExprExt` extending it; this smoke test proves the import
+# path resolves before the heavy factor work proceeds.
+#
+# Sources include the kernel-side file via `@polyglot_ast//lean:...`
+# (which works under the rules_lean cross-repo `_module_path` patch). The
+# package check sees `lean/Polyglot/Sql/Ast.lean` after the
+# `../polyglot_ast+/` prefix strip — same package as the rules_postgres-side
+# files, so the stage layout works.
+lean_test(
+    name = "polyglot_sql_smoke_test",
+    srcs = ["Polyglot/SqlSmoke.lean"],
+    entry = "Polyglot/SqlSmoke.lean",
+    visibility = ["//visibility:public"],
+    # Polyglot.Sql.Ast as a prebuilt olean dep (was an @polyglot_ast source).
+    deps = ["@rules_lang//lean:atlas"],
+)
+
+# ─── Pg AST per-constructor smoke tests ────────────────────────────
+#
+# Adopted from Aion's `lean/Aion/Db/PgAst*Test.lean` (Phase C of the
+# Common-Pg consolidation). Each test pins the SQL printer surface +
+# Tightening-E surface-lock for one BodyStmt constructor (or family).
+
+pg_ast_smoke_test(
+    name = "pg_ast_begin_exception_test",
+    entry = "Pg/AstBeginExceptionTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_case_stmt_test",
+    entry = "Pg/AstCaseStmtTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_declare_block_test",
+    entry = "Pg/AstDeclareBlockTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_declare_local_test",
+    entry = "Pg/AstDeclareLocalTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_execute_format_test",
+    entry = "Pg/AstExecuteFormatTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_for_record_in_loop_test",
+    entry = "Pg/AstForRecordInLoopTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_if_else_if_test",
+    entry = "Pg/AstIfElseIfTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_alter_table_test",
+    entry = "Pg/AstAlterTableTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_exists_many_test",
+    entry = "Pg/AstExistsManyTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_insert_delete_test",
+    entry = "Pg/AstInsertDeleteTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_perform_test",
+    entry = "Pg/AstPerformTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_raise_notice_test",
+    entry = "Pg/AstRaiseNoticeTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_return_query_select_test",
+    entry = "Pg/AstReturnQuerySelectTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_select_into_test",
+    entry = "Pg/AstSelectIntoTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_trigger_d_ext_test",
+    entry = "Pg/AstTriggerDExtTest.lean",
+)
+
+pg_ast_smoke_test(
+    name = "pg_ast_update_return_expr_test",
+    entry = "Pg/AstUpdateReturnExprTest.lean",
+)
+
+# Pg.Ty extension-arm pinning tests (PgType constructors).
+lean_test(
+    name = "pg_ty_ext_test",
+    srcs = [
+        "Pg/Ty.lean",
+        "Pg/TyExtTest.lean",
+    ],
+    entry = "Pg/TyExtTest.lean",
+    visibility = ["//visibility:public"],
+)
+
+# Plpgsql JSON-reader pinning test.
+lean_test(
+    name = "plpgsql_json_reader_test",
+    srcs = [
+        "Pg/Ast.lean",
+        "Pg/AstSmart.lean",
+        "Pg/Catalog/Oid.lean",
+        "Pg/Catalog/RegTypes.lean",
+        "Pg/Catalog/Tables.lean",
+        "Pg/Plpgsql/JsonReader.lean",
+        "Pg/Plpgsql/JsonReaderTest.lean",
+        "Pg/RegexAst.lean",
+        "Pg/Spec.lean",
+        "Pg/Stmt.lean",
+        "Pg/Ty.lean",
+    ],
+    entry = "Pg/Plpgsql/JsonReaderTest.lean",
+    visibility = ["//visibility:public"],
+    # Polyglot.Sql.Ast as a prebuilt olean dep (was an @polyglot_ast source).
+    deps = ["@rules_lang//lean:atlas"],
+)
+
+# Pg.Query.Generated typecheck — the DDL-slice stubbed surface
+# from `@rules_postgres//tools:pgpb_codegen`. GeneratedTest.lean
+# constructs three sample `ParseResult` values (empty, single,
+# mixed) of the exact same shape that
+# `@rules_postgres//tools:pgpb_to_lean_ast` produces from a
+# `.pgpb` byte payload. If this passes, any decoder output
+# also passes — the test gates the decoder + generator agreeing
+# on encoding (kernel-checked).
+lean_test(
+    name = "pg_query_generated_test",
+    srcs = [
+        "Pg/Query/Generated.lean",
+        "Pg/Query/GeneratedTest.lean",
+    ],
+    entry = "Pg/Query/GeneratedTest.lean",
+    visibility = ["//visibility:public"],
+)
+
+# End-to-end trust-chain gate:
+#
+#   tools/pgpb_to_lean_ast/smoke_fixture.sql
+#       ↓ //tools:sql_to_protobuf
+#   smoke_fixture.pgpb
+#       ↓ //tools/pgpb_to_lean_ast:pgpb_to_lean_ast
+#   SmokeFixture.lean    (Pg.Query.SmokeFixture.parseResult)
+#       ↓ lean_test
+#   Kernel-checked Pg.Query.ParseResult value
+#
+# A break at any link surfaces here: malformed SQL → sql_to_protobuf
+# fails; protobuf-c API drift → pgpb_to_lean_ast fails; encoding
+# disagreement between pgpb_codegen and pgpb_to_lean_ast →
+# Lean kernel rejects the decoder's output.
+lean_test(
+    name = "pg_query_decoder_smoke_test",
+    srcs = [
+        "Pg/Query/Generated.lean",
+        "//tools/pgpb_to_lean_ast:SmokeFixture.lean",
+    ],
+    entry = "SmokeFixture.lean",
+    visibility = ["//visibility:public"],
+)
+
+# Pg.Catalog.Fold — kernel-checked catalog projection over typed
+# top-level DDL stmts. Phase 0 covers CreateSchemaStmt +
+# CreateEnumStmt; FoldTest exercises both via inline TopParseResult
+# values + native_decide assertions on the resulting Snapshot.
+#
+# This is the proof-tier ladder leg: the catalog projection moves
+# from "trust the C tool" to "kernel-checked" once enough handlers
+# accumulate to match pgpb_to_snapshot.c's coverage.
+lean_test(
+    name = "pg_catalog_fold_test",
+    srcs = [
+        "Pg/Catalog/Fold.lean",
+        "Pg/Catalog/FoldTest.lean",
+        "Pg/Catalog/Oid.lean",
+        "Pg/Catalog/RegTypes.lean",
+        "Pg/Catalog/Snapshot.lean",
+        "Pg/Catalog/Tables.lean",
+        "Pg/Query/Top.lean",
+    ],
+    entry = "Pg/Catalog/FoldTest.lean",
+    visibility = ["//visibility:public"],
+)
+
+# End-to-end fold pipeline: .sql → .pgpb → typed .lean → fold →
+# Snapshot. Consumes the same smoke_fixture as
+# pg_query_decoder_smoke_test (which used opaque ByteArray); this
+# variant takes the typed dispatch and runs it through the kernel-
+# checked fold.
+#
+# Phase 0 asserts on the namespace count (CREATE SCHEMA is the only
+# fully-typed stmt in the fixture); Phase 1+ asserts tighten as the
+# fold's coverage grows to match pgpb_to_snapshot.c.
+lean_test(
+    name = "pg_catalog_fold_pipeline_test",
+    srcs = [
+        "Pg/Catalog/Fold.lean",
+        "Pg/Catalog/FoldPipelineTest.lean",
+        "Pg/Catalog/Oid.lean",
+        "Pg/Catalog/RegTypes.lean",
+        "Pg/Catalog/Snapshot.lean",
+        "Pg/Catalog/Tables.lean",
+        "Pg/Query/Top.lean",
+        "//tools/pgpb_to_lean_ast:SmokeFixtureTyped.lean",
+    ],
+    entry = "Pg/Catalog/FoldPipelineTest.lean",
+    visibility = ["//visibility:public"],
+)
+
+# Pg.Catalog.SnapshotEmit printer smoke. Hand-builds a small
+# Snapshot covering every row kind, runs Snapshot.toLeanSource,
+# native_decide-asserts on well-known substrings of the output.
+# When the lean_emit-backed pg_sql_catalog_library_lean macro
+# lands, a full byte-equivalence diff_test against the C tool's
+# output supersedes this.
+lean_test(
+    name = "pg_catalog_snapshot_emit_test",
+    srcs = [
+        "Pg/Catalog/Oid.lean",
+        "Pg/Catalog/RegTypes.lean",
+        "Pg/Catalog/Snapshot.lean",
+        "Pg/Catalog/SnapshotEmit.lean",
+        "Pg/Catalog/SnapshotEmitTest.lean",
+        "Pg/Catalog/Tables.lean",
+    ],
+    entry = "Pg/Catalog/SnapshotEmitTest.lean",
+    visibility = ["//visibility:public"],
+)
+
+# ─── Query semantics: the seam a planner needs ─────────────────────────────
+#
+# This repo models a query's SYNTAX and its TYPES. It does not say what a query
+# MEANS, and until something does, "this plan equals that plan" is not a
+# statement that can be made — so no rewrite can be justified, only tested.
+#
+# `Pg/Rel/Semantics.lean` is that denotation, over BAGS (SQL keeps duplicates)
+# and THREE-VALUED predicates (`WHERE` keeps only TRUE). It carries its own
+# counterexample: a SQL predicate and its negation DO NOT partition a table, so
+# a planner may prune with one and never reassemble. That is the classic
+# null-handling bug, stated before anything is built on top of it.
+lean_test(
+    name = "pg_rel_semantics_test",
+    size = "small",
+    srcs = ["Pg/Rel/Semantics.lean"],
+    entry = "Pg/Rel/Semantics.lean",
+)
+
+# ⛔ THE ONE A `lean_test` CANNOT DO ITSELF.
+#
+# `sorry` warns and `lean` exits 0, so a lean_test over a file with a `sorry` in
+# it is GREEN. `Pg/Rel/Semantics.lean` sets `warningAsError` and therefore
+# refuses one; the other 113 files in this tree do not. This is the gate that
+# covers them. Read `no_sorry.sh` for what it deliberately does NOT check —
+# `native_decide` and `axiom` are load-bearing here, not debt.
+sh_test(
+    name = "no_sorry_test",
+    size = "small",
+    srcs = ["no_sorry.sh"],
+    data = glob(["**/*.lean"]),
+)

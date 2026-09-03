@@ -1,0 +1,10 @@
+load("@rules_lean//lean:lean.bzl", "lean_library")
+
+# Integration smoke: compile a trivial Lean module against the imported atlas
+# (//lean:atlas), which fetches the per-arch olean tarball from this repo's
+# GitHub release. Proves the released artifact is a loadable import root.
+lean_library(
+    name = "smoke",
+    srcs = ["Smoke.lean"],
+    deps = ["//lean:atlas"],
+)

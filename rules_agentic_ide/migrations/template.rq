@@ -1,0 +1,18 @@
+# Migration codemod TEMPLATE — a SPARQL UPDATE that rewrites a consumer's
+# authored graph from an old aide: shape to a new one. Copy to
+# `<from>-to-<to>.rq`, fill in the rename/restructure, and ship it with the
+# breaking release. Applied with Jena ARQ `update` (see README.md).
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+# Example: a property rename (aide:oldName → aide:newName). DELETE the old
+# triple, INSERT the new one, for every subject that carries it.
+DELETE { ?s aide:oldName ?v }
+INSERT { ?s aide:newName ?v }
+WHERE  { ?s aide:oldName ?v }
+
+# Example: drop a removed property entirely.
+# DELETE { ?s aide:removedProp ?v } WHERE { ?s aide:removedProp ?v } ;
+
+# Example: set a new required default where absent.
+# INSERT { ?s aide:requiredProp "default" }
+# WHERE  { ?s a aide:Skill . FILTER NOT EXISTS { ?s aide:requiredProp ?x } } ;

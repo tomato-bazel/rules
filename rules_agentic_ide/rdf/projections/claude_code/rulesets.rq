@@ -1,0 +1,31 @@
+# Claude Code ruleset projection.
+#
+# Claude reads a single project-scoped CLAUDE.md, so every authored
+# aide:Ruleset folds into ONE CLAUDE.md as an ordered body fragment
+# (aide:bodyFragment) — a root ruleset (no header) followed by scoped
+# topic rules under their aide:fragmentHeader. The serializer concatenates
+# the fragments in aide:order. (Cursor/Copilot keep them as separate
+# scoped files; this is the one-file IDE's merge.)
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+
+CONSTRUCT {
+    aide:out_claude_ruleset a aide:OutputFile ;
+        aide:targetPath "CLAUDE.md" ;
+        aide:fileFormat aide:MarkdownYaml ;
+        aide:forIde aide:ClaudeCode ;
+        aide:bodyFragment ?frag .
+    ?frag aide:bodyPath ?body ;
+        aide:order ?order ;
+        aide:fragmentHeader ?header .
+}
+WHERE {
+    ?rs a aide:Ruleset ;
+        aide:defName ?name ;
+        aide:bodyPath ?body .
+    OPTIONAL { ?rs aide:order ?o }
+    BIND(COALESCE(?o, 0) AS ?order)
+    # Header only when authored — an unbound ?header emits no triple, so
+    # the root ruleset (no fragmentHeader) contributes a bare preamble.
+    OPTIONAL { ?rs aide:fragmentHeader ?header }
+    BIND(IRI(CONCAT("https://fastverk.dev/ontology/agentic_ide/projection#frag/claude/ruleset/", ?name)) AS ?frag)
+}

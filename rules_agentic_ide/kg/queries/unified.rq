@@ -1,0 +1,9 @@
+# Prove the rollup carries BOTH layers: the structural bzl: facts the
+# aspect emits AND the authored aide: definitions it folds in.
+PREFIX bzl: <https://fastverk.dev/ontology/bazel#>
+PREFIX aide: <https://fastverk.dev/ontology/agentic_ide/projection#>
+SELECT ?layer ?what WHERE {
+  { ?t a bzl:Target ; bzl:kind ?k . BIND("bzl:Target" AS ?layer) BIND(?k AS ?what) }
+  UNION
+  { ?s a aide:Skill ; aide:defName ?n . BIND("aide:Skill" AS ?layer) BIND(?n AS ?what) }
+} ORDER BY ?layer ?what
