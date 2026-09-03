@@ -1,0 +1,24 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+package(default_visibility = ["//visibility:public"])
+
+stardoc(
+    name = "repositories_doc",
+    out = "repositories.md.generated",
+    input = "//github:repositories.bzl",
+    deps = ["//github:repositories_bzl"],
+)
+
+diff_test(
+    name = "repositories_doc_up_to_date",
+    file1 = "repositories.md",
+    file2 = ":repositories_doc",
+)
+
+sh_binary(
+    name = "update",
+    srcs = ["update.sh"],
+    data = [":repositories_doc"],
+)

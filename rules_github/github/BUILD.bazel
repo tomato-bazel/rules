@@ -1,0 +1,25 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "repositories.bzl",
+    "extensions.bzl",
+])
+
+bzl_library(
+    name = "repositories_bzl",
+    srcs = ["repositories.bzl"],
+    # Public: downstream rules_* repos (rules_bun, rules_mdbook, …) declare
+    # this as a stardoc bzl_library dep when their own extensions.bzl loads
+    # github_binary_repository.
+    visibility = ["//visibility:public"],
+    deps = ["//github/private:platforms_bzl"],
+)
+
+bzl_library(
+    name = "extensions_bzl",
+    srcs = ["extensions.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [":repositories_bzl"],
+)
