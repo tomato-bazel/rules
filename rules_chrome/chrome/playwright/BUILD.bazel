@@ -1,0 +1,48 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_python//python:py_library.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "py.bzl",
+    "js.bzl",
+    "rules_chrome_playwright.py",
+    "rules_chrome_playwright.js",
+])
+
+# Python helper library — `imports = ["."]` makes
+# `from rules_chrome_playwright import chrome_context` work from any
+# py_test that depends on this target. Playwright itself is left to the
+# consumer's pip hub (not pinned by rules_chrome).
+py_library(
+    name = "py_helper",
+    srcs = ["rules_chrome_playwright.py"],
+    imports = ["."],
+)
+
+# aspect_rules_js requires cross-package JS data deps to be wrapped in a
+# js_library so the file gets copied into the consumer's output tree.
+# `playwright_chrome_js_test` references this label directly; consumers
+# never name it.
+js_library(
+    name = "js_helper",
+    srcs = ["rules_chrome_playwright.js"],
+)
+
+bzl_library(
+    name = "py_bzl",
+    srcs = ["py.bzl"],
+    visibility = ["//docs:__pkg__"],
+    deps = ["@rules_python//python:py_test_bzl"],
+)
+
+bzl_library(
+    name = "js_bzl",
+    srcs = ["js.bzl"],
+    visibility = ["//docs:__pkg__"],
+    deps = [
+        "@aspect_rules_js//js:defs",
+        "@bazel_skylib//rules:copy_file",
+    ],
+)

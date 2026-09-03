@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # PR gate: rule-graph loads, stardoc-generated reference docs match the
+  # .bzl docstrings (diff_test), and the smoke targets in examples/...
+  # run `chrome --version` + `chromedriver --version` successfully. Runs
+  # on linux + macos because the platform detection in
+  # chrome/extensions.bzl branches per OS — both code paths get covered.
+  test:
+    name: bazel test //...
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Chrome needs a handful of shared libs that ubuntu-latest doesn't
+      # ship by default. Skipping libnss3/libnspr4 etc. makes
+      # `chrome --version` either segfault or fail with "error while
+      # loading shared libraries" depending on glibc version.
+      - name: install chrome runtime libs (linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+            libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+            libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64
+
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ matrix.os }}
+          repository-cache: true
+
+      # `rules_python` + `aspect_rules_js` extensions need a python3 and
+      # a node toolchain visible during repo-rule evaluation. Bazel
+      # itself ships neither; ubuntu-latest already has python3 but the
+      # setup-node action gives us a pinned node + npm/pnpm cache.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: bazel test //docs/... //examples/... //tools/... --test_output=errors
+
+  # Verify the version refresher tool still parses the upstream JSON
+  # cleanly (e.g. CfT didn't rename fields under us). We don't bump
+  # known_versions.bzl on every CI run — that's a manual `bazel run`-
+  # equivalent operation gated by a maintainer.
+  refresher_smoke:
+    name: refresh_versions.py smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: dry-parse upstream JSON
+        run: |
+          python3 -c '
+          import json, urllib.request
+          url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+          data = json.load(urllib.request.urlopen(url))
+          stable = data["channels"]["Stable"]
+          assert "version" in stable
+          assert any(d["platform"] == "linux64" for d in stable["downloads"]["chrome"])
+          assert any(d["platform"] == "mac-arm64" for d in stable["downloads"]["chromedriver"])
+          print("upstream JSON shape OK; current Stable =", stable["version"])
+          '
+
+  buildifier:
+    name: buildifier lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install buildifier
+        run: |
+          curl -fsSL -o /usr/local/bin/buildifier \
+            https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
+          chmod +x /usr/local/bin/buildifier
+      - run: buildifier --mode=check --lint=warn -r .

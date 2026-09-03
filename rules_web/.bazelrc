@@ -1,0 +1,7 @@
+# Bazel module registries. Premium first so its private modules win
+# (firefox_webidl_parser implements webidl_toolchain_type and lives there),
+# then the public fastverk registry, then BCR.
+
+# Forward `gh auth token` for private premium-registry fetches.
+
+try-import %workspace%/user.bazelrc

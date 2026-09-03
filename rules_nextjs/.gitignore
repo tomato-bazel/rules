@@ -1,0 +1,7 @@
+bazel-*
+.bazelrc.user
+.DS_Store
+node_modules
+.pnpm-store
+.claude/
+MODULE.bazel.lock

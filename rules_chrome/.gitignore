@@ -1,0 +1,6 @@
+bazel-*
+.bazelrc.user
+.DS_Store
+.vscode/
+.claude/
+MODULE.bazel.lock

@@ -36,5 +36,23 @@
         "workdir": "."
       }
     ]
+  },
+  "rules_bun": {
+    "bazel": "test //docs/... --test_output=errors"
+  },
+  "rules_nextjs": {
+    "bazel": "build //next/..."
+  },
+  "rules_vite": {
+    "bazel": "test //docs/... --test_output=errors"
+  },
+  "rules_astro": {
+    "bazel": ""
+  },
+  "rules_storybook": {
+    "bazel": "build //..."
+  },
+  "rules_chrome": {
+    "bazel": "test //docs/... --test_output=errors"
   }
 }
