@@ -151,13 +151,14 @@ only because that repo lacked the registry chain `vehicle.bazelrc` now
 supplies.
 Cluster 5: `rules_lean` / `rules_lang` `//docs/...` (source fast gates;
 examples pull Lean toolchains / lake workspaces);
-`rules_postgres` `//docs/... //examples/...` (source fast gate; `//lean`
-proofs stay out of the vehicle matrix);
+`rules_postgres` `//docs/... //examples/parse_smoke/...` (`meson_smoke`
+needs host flex; `//lean` proofs stay out of the vehicle matrix);
 `rules_uv` `//docs/...` (examples cargo-bootstrap the uv binary; source
 CI is the broken cross-org reusable workflow);
 `rules_vscode` default `bazel test //...`;
-`rules_fastverk_plugin` / `rules_agentic_ide` default (no source CI;
-exit 4 falls back to `bazel build //...`).
+`rules_fastverk_plugin` default (no tests; exit 4 → `bazel build //...`);
+`rules_agentic_ide` `//crates/...` (`//...` Jena SPARQL needs Java 17+
+that the imported `rules_jena` 0.3.2 wrapper does not pick up).
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.

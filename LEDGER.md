@@ -31,7 +31,7 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 
 | Module | Status | Source repo | Source SHA | `module(name)` | `module(version)` | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| rules_agentic_ide | imported | [tomato-bazel/rules_agentic_ide](https://github.com/tomato-bazel/rules_agentic_ide) | `f8741d360a6ae454cf63690c73f81b8daa44ef05` | rules_agentic_ide | 0.0.4 | cluster 5; still pins `rules_rdf` 0.3.0; no source CI workflow |
+| rules_agentic_ide | imported | [tomato-bazel/rules_agentic_ide](https://github.com/tomato-bazel/rules_agentic_ide) | `f8741d360a6ae454cf63690c73f81b8daa44ef05` | rules_agentic_ide | 0.0.4 | cluster 5; still pins `rules_rdf` 0.3.0; no source CI; `//...` Jena SPARQL needs Java 17+ (vehicle runs `//crates/...`) |
 | rules_aip | imported | [tomato-bazel/rules_aip](https://github.com/tomato-bazel/rules_aip) | `1c28e8c7ad38ea866ffc2b472aba644ffb3656a2` | rules_aip | 0.3.0 | cluster 2 |
 | rules_astro | imported | [tomato-bazel/rules_astro](https://github.com/tomato-bazel/rules_astro) | `5625f86d3ab123b623264747bf47ba2e92270be0` | rules_astro | 0.0.1 | cluster 3; no LICENSE; HEAD cannot analyze (`aspect_rules_js` 2.1.3 / no `sh_test`) |
 | rules_autoconf | pending | [tomato-bazel/rules_autoconf](https://github.com/tomato-bazel/rules_autoconf) | `82fdab99cf48b50931abc31febe98a8876d9a068` | rules_autoconf | 0.1.0 | |
@@ -64,7 +64,7 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 | rules_nextjs | imported | [tomato-bazel/rules_nextjs](https://github.com/tomato-bazel/rules_nextjs) | `234de738a4400b8ecdc136076cd617a55b5e120a` | rules_nextjs | 0.3.0 | cluster 3; `//docs` stardoc missing `copy_to_directory.bzl` bzl_library |
 | rules_openapi | imported | [tomato-bazel/rules_openapi](https://github.com/tomato-bazel/rules_openapi) | `00e3f8794dd1924a8f39c76bfa25e1ac6f31d58d` | rules_openapi | 0.4.0 | cluster 2; HEAD cannot `bazel test` (`go_client_codegen_toolchain_type` still reserved) |
 | rules_podman | imported | [tomato-bazel/rules_podman](https://github.com/tomato-bazel/rules_podman) | `548ff53f9bb1879a735c7b34a361ffe1826d8e8b` | rules_podman | 0.0.2 | cluster 4 |
-| rules_postgres | imported | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `a471dc40cddd8c97e5f170e5e6c6658e85c4d13c` | rules_postgres | 0.12.0 | cluster 5; still pins `rules_github` 0.1.1 / `rules_lean` 0.6.1 / `rules_lang` 0.4.4; source CI fast gate is `//docs/... //examples/...` |
+| rules_postgres | imported | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `a471dc40cddd8c97e5f170e5e6c6658e85c4d13c` | rules_postgres | 0.12.0 | cluster 5; still pins `rules_github` 0.1.1 / `rules_lean` 0.6.1 / `rules_lang` 0.4.4; `//examples/meson_smoke` needs host flex (vehicle runs `//docs/... //examples/parse_smoke/...`) |
 | rules_puml | pending | [tomato-bazel/rules_puml](https://github.com/tomato-bazel/rules_puml) | `80ed7791f91611fc23baa004cf9e6f92915b7c54` | rules_puml | 0.0.2 | |
 | rules_rdf | imported | [tomato-bazel/rules_rdf](https://github.com/tomato-bazel/rules_rdf) | `949e6a2fb5fb2caa65fcf16264f7cb313b1f5c62` | rules_rdf | 0.4.0 | first cluster |
 | rules_readme | imported | [tomato-bazel/rules_readme](https://github.com/tomato-bazel/rules_readme) | `855f2197077c1a0fac1476c0cd19c7bfa76f461b` | rules_readme | 0.0.3 | cluster 2 |
