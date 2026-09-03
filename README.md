@@ -162,12 +162,13 @@ CI is the broken cross-org reusable workflow);
 `rules_agentic_ide` `//crates/...` (`//...` Jena SPARQL needs Java 17+
 that the imported `rules_jena` 0.3.2 wrapper does not pick up).
 Cluster 6: `rules_autoconf` `//docs/... //examples/...` (source CI);
-`rules_cc_cross` / `rules_cc_host` / `rules_beam` / `rules_meson` /
-`rules_systemd` / `rules_macvm` / `rules_ssh_tui` default
-`bazel test //...` (`rules_cc_host` has no tests; exit 4 →
-`bazel build //...`). Source `rules_cc_cross` / `rules_cc_host` /
-`rules_beam` CI is the broken cross-org reusable workflow;
-`rules_meson` has no source CI.
+`rules_cc_cross` `build //cc_cross/...` (`//examples/aarch64_hello`
+uses a bare `cc_binary` that Bazel 9 will not load);
+`rules_systemd` / `rules_macvm` default `bazel test //...`;
+`rules_cc_host` / `rules_beam` / `rules_meson` / `rules_ssh_tui`
+default (no tests; exit 4 → `bazel build //...`). Source
+`rules_cc_cross` / `rules_cc_host` / `rules_beam` CI is the broken
+cross-org reusable workflow; `rules_meson` has no source CI.
 A module with no test targets (`bazel test` exit 4) falls back to
 `bazel build //...`. Buildifier runs as a warning so this PR does not rewrite
 imported Starlark.

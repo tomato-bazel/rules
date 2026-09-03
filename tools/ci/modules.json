@@ -75,5 +75,8 @@
   },
   "rules_autoconf": {
     "bazel": "test //docs/... //examples/... --test_output=errors"
+  },
+  "rules_cc_cross": {
+    "bazel": "build //cc_cross/..."
   }
 }
