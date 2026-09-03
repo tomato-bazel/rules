@@ -14,9 +14,9 @@ Status:
   row was written. Do not pretend these are in the tree.
 - `excluded` — must not appear as a module directory here.
 
-The first cooperating cluster is imported in this PR once the subtree
-adds land: `rules_tomato`, `rules_ci`, `rules_github`, `rules_rdf`,
-`rules_jena`. Until those directories exist, their rows stay `pending`.
+The first cooperating cluster is imported in this PR via `git subtree add`
+(no squash) from each source `main` SHA below: `rules_tomato`, `rules_ci`,
+`rules_github`, `rules_rdf`, `rules_jena`.
 
 ## Includes (public tomato-bazel/rules_*)
 
@@ -32,17 +32,17 @@ adds land: `rules_tomato`, `rules_ci`, `rules_github`, `rules_rdf`,
 | rules_cc_cross | pending | [tomato-bazel/rules_cc_cross](https://github.com/tomato-bazel/rules_cc_cross) | `41e338bc4a60b9fa7f4fa68c6f4a812793b82ac6` | rules_cc_cross | 0.1.0 | |
 | rules_cc_host | pending | [tomato-bazel/rules_cc_host](https://github.com/tomato-bazel/rules_cc_host) | `526bf84f6b45bc557518686f363d5e23a4843a3f` | rules_cc_host | 0.1.0 | |
 | rules_chrome | pending | [tomato-bazel/rules_chrome](https://github.com/tomato-bazel/rules_chrome) | `5b5b0f932c9bc49e1675084e123306e1cef4d4fc` | rules_chrome | 0.1.1 | |
-| rules_ci | pending | [tomato-bazel/rules_ci](https://github.com/tomato-bazel/rules_ci) | `2fc336a762dd33693ef63c5510b0d4935e079f41` | rules_ci | 0.3.0 | first cluster; project/release |
+| rules_ci | imported | [tomato-bazel/rules_ci](https://github.com/tomato-bazel/rules_ci) | `2fc336a762dd33693ef63c5510b0d4935e079f41` | rules_ci | 0.3.0 | first cluster; project/release |
 | rules_cloudformation | pending | [tomato-bazel/rules_cloudformation](https://github.com/tomato-bazel/rules_cloudformation) | `d16954abd5ae9613f82c1da00b6384159cd23058` | rules_cloudformation | 0.10.0 | |
 | rules_docker_compose | pending | [tomato-bazel/rules_docker_compose](https://github.com/tomato-bazel/rules_docker_compose) | `b08f81148e8efd47c170e6379798f52ba215c3aa` | rules_docker_compose | 0.2.6 | |
 | rules_eslint | pending | [tomato-bazel/rules_eslint](https://github.com/tomato-bazel/rules_eslint) | `859add1992697a7f0b32b57a03535a4b6cb9ed8b` | rules_eslint | 0.1.0 | |
 | rules_fastverk_plugin | pending | [tomato-bazel/rules_fastverk_plugin](https://github.com/tomato-bazel/rules_fastverk_plugin) | `51660e7e8352ba0cc23ad08fe45dae862376f71b` | rules_fastverk_plugin | 0.0.1 | no LICENSE in source |
-| rules_github | pending | [tomato-bazel/rules_github](https://github.com/tomato-bazel/rules_github) | `c23109bba2638ff474071878feafd24b7917e12b` | rules_github | 0.1.2 | first cluster |
+| rules_github | imported | [tomato-bazel/rules_github](https://github.com/tomato-bazel/rules_github) | `c23109bba2638ff474071878feafd24b7917e12b` | rules_github | 0.1.2 | first cluster |
 | rules_gitlab | pending | [tomato-bazel/rules_gitlab](https://github.com/tomato-bazel/rules_gitlab) | `7e88d1eee76bc3e53afa5236f5f42de90d6bb34f` | rules_gitlab | 0.3.4 | |
 | rules_graphviz | pending | [tomato-bazel/rules_graphviz](https://github.com/tomato-bazel/rules_graphviz) | `ea2c90c6e37b0f185063ddc3dad8b135a55c54da` | rules_graphviz | 0.2.0 | |
 | rules_helm | pending | [tomato-bazel/rules_helm](https://github.com/tomato-bazel/rules_helm) | `75c9d32bee410616fe5e8998dabd2e84a31f37f4` | rules_helm | 0.2.0 | |
 | rules_huggingface | pending | [tomato-bazel/rules_huggingface](https://github.com/tomato-bazel/rules_huggingface) | `5a2d56dd82adf71a1f98cf9117e17498610dc5c2` | rules_huggingface | 0.0.4 | |
-| rules_jena | pending | [tomato-bazel/rules_jena](https://github.com/tomato-bazel/rules_jena) | `dc0fff487ef5d4084a4ceb1a104e3ef1128e25b1` | rules_jena | 0.3.2 | first cluster |
+| rules_jena | imported | [tomato-bazel/rules_jena](https://github.com/tomato-bazel/rules_jena) | `dc0fff487ef5d4084a4ceb1a104e3ef1128e25b1` | rules_jena | 0.3.2 | first cluster |
 | rules_jsonschema | pending | [tomato-bazel/rules_jsonschema](https://github.com/tomato-bazel/rules_jsonschema) | `c707ecd0dd8c6dfd5170038b64317b8d20b54138` | rules_jsonschema | 0.4.0 | |
 | rules_k8s | pending | [tomato-bazel/rules_k8s](https://github.com/tomato-bazel/rules_k8s) | `c42aa0a5b0c3e71a3880e07d33f67f0cb8f2180a` | rules_k8s | 0.0.3 | |
 | rules_lang | pending | [tomato-bazel/rules_lang](https://github.com/tomato-bazel/rules_lang) | `dd9b9b61b5a4f8e6462d0aa2636b06d4ee03d09b` | rules_lang | 0.5.0 | |
@@ -57,7 +57,7 @@ adds land: `rules_tomato`, `rules_ci`, `rules_github`, `rules_rdf`,
 | rules_podman | pending | [tomato-bazel/rules_podman](https://github.com/tomato-bazel/rules_podman) | `548ff53f9bb1879a735c7b34a361ffe1826d8e8b` | rules_podman | 0.0.2 | |
 | rules_postgres | pending | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `a471dc40cddd8c97e5f170e5e6c6658e85c4d13c` | rules_postgres | 0.12.0 | |
 | rules_puml | pending | [tomato-bazel/rules_puml](https://github.com/tomato-bazel/rules_puml) | `80ed7791f91611fc23baa004cf9e6f92915b7c54` | rules_puml | 0.0.2 | |
-| rules_rdf | pending | [tomato-bazel/rules_rdf](https://github.com/tomato-bazel/rules_rdf) | `949e6a2fb5fb2caa65fcf16264f7cb313b1f5c62` | rules_rdf | 0.4.0 | first cluster |
+| rules_rdf | imported | [tomato-bazel/rules_rdf](https://github.com/tomato-bazel/rules_rdf) | `949e6a2fb5fb2caa65fcf16264f7cb313b1f5c62` | rules_rdf | 0.4.0 | first cluster |
 | rules_readme | pending | [tomato-bazel/rules_readme](https://github.com/tomato-bazel/rules_readme) | `855f2197077c1a0fac1476c0cd19c7bfa76f461b` | rules_readme | 0.0.3 | |
 | rules_schema_org | pending | [tomato-bazel/rules_schema_org](https://github.com/tomato-bazel/rules_schema_org) | `1a9665c4cd76b4ecf8ef008594e89df3926b784c` | rules_schema_org | 0.0.3 | |
 | rules_ssh_tui | pending | [tomato-bazel/rules_ssh_tui](https://github.com/tomato-bazel/rules_ssh_tui) | `9f973cb0d8338a8cc2328763706e05f762cc8234` | rules_ssh_tui | 0.0.5 | |
@@ -66,7 +66,7 @@ adds land: `rules_tomato`, `rules_ci`, `rules_github`, `rules_rdf`,
 | rules_tap | pending | [tomato-bazel/rules_tap](https://github.com/tomato-bazel/rules_tap) | `3567697ede16e0378f6501ed32b7436c8f01a441` | rules_tap | 0.0.3 | public rules; private engine is `tap` (excluded) |
 | rules_tectonic | pending | [tomato-bazel/rules_tectonic](https://github.com/tomato-bazel/rules_tectonic) | `ed693324ead9c0796442ffd4d9ad12b27f9cd01d` | rules_tectonic | 0.2.0 | |
 | rules_tla | pending | [tomato-bazel/rules_tla](https://github.com/tomato-bazel/rules_tla) | `b39eb6fc672a67a7d40f1cd258d2eb3abc13f0a3` | rules_tla | 0.2.0 | |
-| rules_tomato | pending | [tomato-bazel/rules_tomato](https://github.com/tomato-bazel/rules_tomato) | `6d3cc9fc181dbcc4cbe683d06422e5f20af2d956` | rules_tomato | 0.1.2 | first cluster; BOM + shared bazelrc |
+| rules_tomato | imported | [tomato-bazel/rules_tomato](https://github.com/tomato-bazel/rules_tomato) | `6d3cc9fc181dbcc4cbe683d06422e5f20af2d956` | rules_tomato | 0.1.2 | first cluster; BOM + shared bazelrc |
 | rules_uv | pending | [tomato-bazel/rules_uv](https://github.com/tomato-bazel/rules_uv) | `7a43b9b6878608aa91f23110b4dc3cb719ce8ef0` | rules_uv | 0.7.4 | |
 | rules_vite | pending | [tomato-bazel/rules_vite](https://github.com/tomato-bazel/rules_vite) | `093dbdcaba31ec0de2d45fb1e6cce719a34fec59` | rules_vite | 0.1.1 | |
 | rules_vscode | pending | [tomato-bazel/rules_vscode](https://github.com/tomato-bazel/rules_vscode) | `0099c257414fe8a69ed07db642810167e7d63a29` | rules_vscode | 0.0.2 | |
@@ -79,11 +79,11 @@ Unchecked rows are **not** in this tree. Import with `git subtree add` (no
 squash) from the source default branch, then flip the row to `imported` and
 set the SHA to the commit that landed.
 
-- [ ] rules_tomato
-- [ ] rules_ci
-- [ ] rules_github
-- [ ] rules_rdf
-- [ ] rules_jena
+- [x] rules_tomato
+- [x] rules_ci
+- [x] rules_github
+- [x] rules_rdf
+- [x] rules_jena
 - [ ] rules_agentic_ide
 - [ ] rules_aip
 - [ ] rules_astro
