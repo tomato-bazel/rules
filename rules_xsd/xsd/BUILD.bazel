@@ -1,0 +1,40 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_java//java:defs.bzl", "java_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# The generic, offline XSD validator — pure JDK javax.xml, zero domain knowledge.
+java_binary(
+    name = "xsd_validate",
+    srcs = ["XsdValidate.java"],
+    jvm_flags = ["-Xmx2g"],
+    main_class = "dev.fastverk.xsd.XsdValidate",
+)
+
+# The generic XSD -> RDF/OWL vocabulary generator (Jena). Links full Jena
+# (incl. jena-arq for the Turtle writer) but no protobuf, so it is clash-free.
+java_binary(
+    name = "xsd_to_vocab",
+    srcs = ["XsdToVocab.java"],
+    main_class = "dev.fastverk.xsd.XsdToVocab",
+    deps = ["@rules_jena//jena:jena_runtime"],
+)
+
+# Re-export the rules so consumers load from a single label, the way
+# rules_rdf exposes //validate:defs.bzl etc.
+exports_files([
+    "defs.bzl",
+    "providers.bzl",
+])
+
+# bzl_library targets so stardoc (//docs) can resolve the load graph.
+bzl_library(
+    name = "providers",
+    srcs = ["providers.bzl"],
+)
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    deps = [":providers"],
+)

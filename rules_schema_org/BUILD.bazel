@@ -1,0 +1,4 @@
+package(default_visibility = ["//visibility:public"])
+
+# Grounding ontology lives under //schemaorg. This root package is
+# intentionally empty; see //schemaorg:BUILD.bazel.

@@ -1,0 +1,23 @@
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+# Gloss grounding: every class / property with its human-readable label
+# and definition (rdfs:comment). The fluency corpus templates these into
+# term↔definition tasks (gloss → canonical term, term → definition) so
+# the NL→BGP parser canonicalizes natural language onto *real* schema.org
+# terms — the basis for hallucination-proof, vocabulary-constrained
+# generation. `?kind` distinguishes classes from properties so the
+# corpus generator can phrase each appropriately.
+SELECT ?term ?kind ?label ?comment WHERE {
+  { ?term a rdfs:Class . BIND("class" AS ?kind) }
+  UNION
+  { ?term a rdf:Property . BIND("property" AS ?kind) }
+  # Restrict to the schema.org chart; the closure drags in foreign,
+  # label-less terms (ELI, blank nodes) we don't want in the corpus.
+  FILTER(STRSTARTS(STR(?term), "https://schema.org/"))
+  OPTIONAL { ?term rdfs:label ?label }
+  OPTIONAL { ?term rdfs:comment ?comment }
+  # Keep only terms with at least one gloss to template from.
+  FILTER(BOUND(?label) || BOUND(?comment))
+}
+ORDER BY ?term

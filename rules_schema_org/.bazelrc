@@ -1,0 +1,8 @@
+# The rdf.resource pin is an isolated extension usage.
+common --experimental_isolated_extension_usages
+
+# Apache Jena (the rules_jena backends) requires a Java 17+ runtime; its
+# jars are compiled to class-file v61. Pin both the target and tool Java
+# runtimes so rdf_reason / sparql_query actions run under JDK 17.
+common --java_runtime_version=remotejdk_17
+common --tool_java_runtime_version=remotejdk_17

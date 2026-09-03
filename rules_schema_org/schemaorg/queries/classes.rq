@@ -1,0 +1,12 @@
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+# Grounding tuples: every class and each of its superclasses. After the
+# RDFS reasoning pass the subClassOf chain is transitively materialized,
+# so this enumerates the full type hierarchy the NL→BGP parser targets
+# (an entity typed as a subclass also satisfies every superclass — the
+# basis for subsumption-aware capability containment).
+SELECT ?class ?superclass WHERE {
+  ?class a rdfs:Class .
+  ?class rdfs:subClassOf ?superclass .
+}
+ORDER BY ?class ?superclass

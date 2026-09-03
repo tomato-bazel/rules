@@ -17,5 +17,24 @@
   },
   "rules_tomato": {
     "noworkspace_rc": true
+  },
+  "rules_markdown": {
+    "bazel": "test //examples/... --test_output=errors"
+  },
+  "rules_mdbook": {
+    "bazel": "test //docs/... //examples/... --test_output=errors"
+  },
+  "rules_readme": {
+    "bazel": "test //examples/... --test_output=errors"
+  },
+  "rules_openapi": {
+    "bazel": "",
+    "setup_go": true,
+    "extra": [
+      {
+        "cmd": "go test ./tools/openapi_to_go_client/",
+        "workdir": "."
+      }
+    ]
   }
 }

@@ -1,0 +1,42 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_jsonschema//util:write_source_files.bzl", "write_source_files")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+package(default_visibility = ["//visibility:public"])
+
+# Reference docs for the public-API .bzl files. Each is gated by a diff_test, so
+# CI fails on drift between docstrings and committed markdown.
+# `bazel run //docs:update` regenerates the markdown.
+stardoc(
+    name = "providers_doc",
+    out = "providers.md.generated",
+    input = "//xsd:providers.bzl",
+    deps = ["//xsd:providers"],
+)
+
+stardoc(
+    name = "defs_doc",
+    out = "defs.md.generated",
+    input = "//xsd:defs.bzl",
+    deps = ["//xsd:defs"],
+)
+
+diff_test(
+    name = "providers_doc_up_to_date",
+    file1 = "providers.md",
+    file2 = ":providers_doc",
+)
+
+diff_test(
+    name = "defs_doc_up_to_date",
+    file1 = "defs.md",
+    file2 = ":defs_doc",
+)
+
+write_source_files(
+    name = "update",
+    files = {
+        "providers.md": ":providers_doc",
+        "defs.md": ":defs_doc",
+    },
+)

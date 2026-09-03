@@ -1,0 +1,4 @@
+common --enable_bzlmod
+test --test_output=errors
+build --verbose_failures
+try-import %workspace%/.bazelrc.user

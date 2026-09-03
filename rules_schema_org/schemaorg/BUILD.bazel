@@ -1,0 +1,73 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//rdf:namespace.bzl", "rdf_namespace_manifest")
+load("@rules_rdf//reason:defs.bzl", "rdf_reason")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+load("@rules_rdf//transform:defs.bzl", "rdf_transform")
+
+package(default_visibility = ["//visibility:public"])
+
+# Normalize SKOS (RDF/XML) → turtle so the linked-graph closure is
+# single-format (the closure concatenation pipes one --in-format).
+rdf_transform(
+    name = "skos_ttl",
+    dataset = "@skos_rdf//:dataset",
+    out_format = "turtle",
+)
+
+# The grounding ontology: schema.org + the SKOS + DCMI-Terms closure.
+# `transitive_files` folds all three so rdf_reason resolves any
+# cross-vocabulary subclass/subproperty chains.
+rdf_dataset(
+    name = "schemaorg",
+    srcs = ["@schemaorg_ttl//:schemaorg-current-https.ttl"],
+    in_format = "turtle",
+    deps = [
+        ":skos_ttl",
+        "@dcterms_ttl//:dataset",
+    ],
+)
+
+# Harvest the grounding vocabulary (namespace set) + audit owl:imports
+# completeness across the closure.
+rdf_namespace_manifest(
+    name = "schemaorg_manifest",
+    dataset = ":schemaorg",
+)
+
+# RDFS-materialize the subclass/subproperty closure (Jena reasoner) so
+# cross-hierarchy typing resolves — the substrate for subsumption-aware
+# containment matching.
+rdf_reason(
+    name = "schemaorg_rdfs",
+    base = ":schemaorg",
+    include_base = True,  # emit base + inferred → the materialized closure
+    profile = "rdfs",
+)
+
+# Grounding tuples (class → superclasses) emitted as a build artifact —
+# the type-hierarchy table the NL→BGP parser's SFT is generated from.
+sparql_query(
+    name = "grounding_classes",
+    dataset = ":schemaorg_rdfs",
+    out_format = "tsv",
+    query = "queries/classes.rq",
+)
+
+# Property grounding: property → domainIncludes / rangeIncludes (the
+# legal triple-pattern shapes for capability BGPs).
+sparql_query(
+    name = "grounding_properties",
+    dataset = ":schemaorg_rdfs",
+    out_format = "tsv",
+    query = "queries/properties.rq",
+)
+
+# Gloss grounding: class/property → rdfs:label + rdfs:comment. The
+# fluency-corpus source for term↔definition tasks (gloss → canonical
+# term, term → definition) — vocabulary-constrained NL→BGP generation.
+sparql_query(
+    name = "grounding_definitions",
+    dataset = ":schemaorg_rdfs",
+    out_format = "tsv",
+    query = "queries/definitions.rq",
+)

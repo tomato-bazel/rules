@@ -1,0 +1,5 @@
+[book]
+title = "rules_mdbook tree-src"
+src = "chapters"
+
+[output.html]

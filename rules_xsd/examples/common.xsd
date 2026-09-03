@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="https://example.org/common"
+           xmlns="https://example.org/common"
+           elementFormDefault="qualified">
+
+  <xs:annotation>
+    <xs:documentation>Shared identifier type, imported by person.xsd.</xs:documentation>
+  </xs:annotation>
+
+  <xs:simpleType name="Id">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>
