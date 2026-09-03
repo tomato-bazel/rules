@@ -70,7 +70,7 @@ Imported via `git subtree add` (no squash) from each source `main` SHA:
 | rules_nextjs | imported | [tomato-bazel/rules_nextjs](https://github.com/tomato-bazel/rules_nextjs) | `234de738a4400b8ecdc136076cd617a55b5e120a` | rules_nextjs | 0.3.0 | cluster 3; `//docs` stardoc missing `copy_to_directory.bzl` bzl_library |
 | rules_openapi | imported | [tomato-bazel/rules_openapi](https://github.com/tomato-bazel/rules_openapi) | `00e3f8794dd1924a8f39c76bfa25e1ac6f31d58d` | rules_openapi | 0.4.0 | cluster 2; HEAD cannot `bazel test` (`go_client_codegen_toolchain_type` still reserved) |
 | rules_podman | imported | [tomato-bazel/rules_podman](https://github.com/tomato-bazel/rules_podman) | `548ff53f9bb1879a735c7b34a361ffe1826d8e8b` | rules_podman | 0.0.2 | cluster 4 |
-| rules_postgres | imported | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `a471dc40cddd8c97e5f170e5e6c6658e85c4d13c` | rules_postgres | 0.12.0 | cluster 5; still pins `rules_github` 0.1.1 / `rules_lean` 0.6.1 / `rules_lang` 0.4.4; `//examples/meson_smoke` needs host flex (vehicle runs `//docs/... //examples/parse_smoke/...`) |
+| rules_postgres | imported | [tomato-bazel/rules_postgres](https://github.com/tomato-bazel/rules_postgres) | `dd73be931d372bb2654b4bf0c20b65ae3d9c85c0` | rules_postgres | 0.12.0 | cluster 5; still pins `rules_github` 0.1.1 / `rules_lean` 0.6.1 / `rules_lang` 0.4.4; `//examples/meson_smoke` needs host flex (vehicle runs `//docs/... //examples/parse_smoke/...`); subtree re-synced to the release/producer-half commit |
 | rules_puml | imported | [tomato-bazel/rules_puml](https://github.com/tomato-bazel/rules_puml) | `80ed7791f91611fc23baa004cf9e6f92915b7c54` | rules_puml | 0.0.2 | cluster 7; source CI is the broken cross-org reusable workflow; no test targets (exit 4 → `bazel build //...`) |
 | rules_rdf | imported | [tomato-bazel/rules_rdf](https://github.com/tomato-bazel/rules_rdf) | `949e6a2fb5fb2caa65fcf16264f7cb313b1f5c62` | rules_rdf | 0.4.0 | first cluster |
 | rules_readme | imported | [tomato-bazel/rules_readme](https://github.com/tomato-bazel/rules_readme) | `855f2197077c1a0fac1476c0cd19c7bfa76f461b` | rules_readme | 0.0.3 | cluster 2 |
@@ -200,3 +200,17 @@ No `--squash`. Source history is merged under the prefix; source remotes are
 not rewritten. After the add, confirm `<module>/MODULE.bazel` still declares
 the same `name` and `version` as the source default branch (do not reset
 versions to a vehicle-wide number).
+
+**Source drift** means an imported row's Source SHA is behind that repo's
+default-branch HEAD — the vehicle is stale, not that `module(version=...)`
+moved. Fix with a no-squash subtree pull, then update this row's SHA to the
+commit that actually merged:
+
+```sh
+git subtree pull --prefix=<module> <source-remote> main
+```
+
+The daily [`drift`](.github/workflows/drift.yml) workflow
+(`tools/ci/check_drift.py`) reports this. It is **report-only**: schedule +
+`workflow_dispatch` only; it does not run on `pull_request` or `push` and
+does not gate PRs.
