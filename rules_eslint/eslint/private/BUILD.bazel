@@ -1,0 +1,6 @@
+# The launcher is referenced by consumers' `eslint_test` targets as
+# `@rules_eslint//eslint/private:run_eslint.sh`, so it must be publicly
+# visible even though it lives under private/.
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["run_eslint.sh"])
